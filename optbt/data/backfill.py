@@ -124,7 +124,9 @@ def in_band(
     ]
 
 
-def fetch_contract(source: ExpiredSource, contract: Contract) -> list[Candle]:
+def fetch_contract(
+    source: ExpiredSource, contract: Contract, until: date | None = None
+) -> list[Candle]:
     """Every bar the contract has, walking back from expiry a window at a time.
 
     Stops at the window that holds the first bar - a contract listed inside it has
@@ -136,7 +138,8 @@ def fetch_contract(source: ExpiredSource, contract: Contract) -> list[Candle]:
     stored cut short would stay cut short for good.
     """
     candles: list[Candle] = []
-    end = contract.expiry
+    # `until`: a contract still trading, asked for only as far as it has gone.
+    end = contract.expiry if until is None else min(contract.expiry, until)
     while end >= EARLIEST:
         start = max(EARLIEST, end - timedelta(days=MAX_SPAN_DAYS))
         page = source.candles(contract.symbol, start, end)

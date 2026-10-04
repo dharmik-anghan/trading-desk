@@ -170,6 +170,42 @@ def atr(bars: Sequence[Bar], length: int = 14) -> Line:
     return out
 
 
+def supertrend(bars: Sequence[Bar], length: int = 10, multiplier: float = 3.0) -> Line:
+    """The Supertrend line: below price in an uptrend, above it in a downtrend.
+
+    TradingView's `ta.supertrend`: bands `multiplier` ATRs either side of the
+    bar's midpoint, each allowed to move only towards price until a close
+    crosses it, at which point the line jumps to the other band. It starts on
+    the upper band - a downtrend - as TradingView's does, so price above the
+    line reads as an uptrend and below it as a downtrend.
+    """
+    _check(length)
+    out: Line = [None] * len(bars)
+    ranges = atr(bars, length)
+    upper = lower = line = 0.0
+    started = False
+    for i, bar in enumerate(bars):
+        a = ranges[i]
+        if a is None:
+            continue
+        mid = (bar.high + bar.low) / 2.0
+        basic_upper, basic_lower = mid + multiplier * a, mid - multiplier * a
+        if not started:
+            upper, lower, line = basic_upper, basic_lower, basic_upper
+            started = True
+        else:
+            previous_close = bars[i - 1].close
+            was_upper = line == upper
+            upper = basic_upper if basic_upper < upper or previous_close > upper else upper
+            lower = basic_lower if basic_lower > lower or previous_close < lower else lower
+            if was_upper:
+                line = lower if bar.close > upper else upper
+            else:
+                line = upper if bar.close < lower else lower
+        out[i] = line
+    return out
+
+
 @dataclass(frozen=True)
 class Pivots:
     """Floor-trader pivots for one period, from the period before it.

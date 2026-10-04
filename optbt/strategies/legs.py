@@ -32,6 +32,7 @@ from optbt.data.models import Kind
 from optbt.engine import Context, Leg, Level, Side, Trade
 from optbt.market import OptionKey, Quote, View
 from optbt.marks import implied_vol
+from optbt.signals import EntrySignal, ExitSignal, Signals
 from venues.calendar import NSE_CLOSE
 
 
@@ -273,6 +274,10 @@ class LegsConfig:
     equal_wings: bool = False
     trigger: EntryTrigger = field(default_factory=EntryTrigger)
     reentry: ReEntry = field(default_factory=ReEntry)
+    #: Indicator conditions on the entry (and on each re-entry), and an exit
+    #: on them. See optbt.signals.
+    entry_signal: EntrySignal = field(default_factory=EntrySignal)
+    exit_signal: ExitSignal = field(default_factory=ExitSignal)
 
 
 def atm_strike(chain: list[Quote], spot: float) -> float | None:
@@ -479,6 +484,12 @@ class LegStrategy:
         self._ref_price: float | None = None
         self._range_hi: float | None = None
         self._range_lo: float | None = None
+        conditions = config.entry_signal.conditions + config.exit_signal.conditions
+        self._signals = Signals(conditions) if conditions else None
+        #: Waiting on the entry signal: since the entry time, for the first
+        #: entry; since a qualifying close, for a re-entry.
+        self._waiting = False
+        self._rearmed = False
 
     def on_day(self, ctx: Context) -> None:
         self._tried_today = False
@@ -487,11 +498,17 @@ class LegStrategy:
         self._ref_price = None
         self._range_hi = None
         self._range_lo = None
+        self._waiting = False
+        self._rearmed = False
+        if self._signals is not None:
+            self._signals.on_day(ctx.view)
 
     def on_bar(self, ctx: Context) -> None:
         cfg = self.config
         view = ctx.view
         clock = view.clock
+        if self._signals is not None:
+            self._signals.on_bar(view)
         self._track_trigger(view)
 
         if ctx.open_legs:
@@ -500,8 +517,12 @@ class LegStrategy:
 
         if ctx.pending or view.day.weekday() not in cfg.weekdays:
             return
-        if cfg.hold == "intraday" and clock >= cfg.exit:
-            return
+        if clock >= cfg.exit and (cfg.hold == "intraday" or view.bars_left == 0):
+            if self._waiting and not self._tried_today:
+                ctx.skip("entry signal never came")
+            self._waiting = False
+            if cfg.hold == "intraday":
+                return
 
         if self._tried_today:
             self._try_reentry(ctx)
@@ -546,7 +567,8 @@ class LegStrategy:
         clock = view.clock
         if clock < self._entry_start():
             return
-        if cfg.trigger.mode == "time":
+        waits = bool(cfg.entry_signal.conditions) and cfg.entry_signal.mode == "wait"
+        if cfg.trigger.mode == "time" and not waits:
             late = _plus(cfg.entry, ENTRY_GRACE)
             if clock >= late:
                 self._tried_today = True
@@ -559,18 +581,46 @@ class LegStrategy:
                 return
         if not self._triggered(view):
             return
+        verdict, why = self._signal_says()
+        if verdict == "wait":
+            self._waiting = True
+            return
         self._tried_today = True
+        self._waiting = False
+        if verdict == "skip":
+            ctx.skip(why)
+            return
         self._enter(ctx)
+
+    def _signal_says(self) -> tuple[Literal["enter", "wait", "skip"], str]:
+        """What the entry signal makes of this moment, and why if not "enter"."""
+        rule = self.config.entry_signal
+        if not rule.conditions or self._signals is None:
+            return "enter", ""
+        met = self._signals.met(rule.conditions, rule.join)
+        if rule.mode == "wait":
+            return ("enter", "") if met is True else ("wait", "")
+        if met is None:
+            return "skip", "entry signal: not enough history"
+        if rule.mode == "take_if":
+            return ("enter", "") if met else ("skip", "entry signal: not met")
+        return ("skip", "entry signal: met") if met else ("enter", "")
 
     def _try_reentry(self, ctx: Context) -> None:
         re = self.config.reentry
         if not re.enabled or self.config.hold != "intraday" or self._reentries_today >= re.max_times:
             return
         closed = ctx.last_closed
-        if closed is None or closed.id == self._reacted_closed_id:
+        if closed is not None and closed.id != self._reacted_closed_id:
+            self._reacted_closed_id = closed.id
+            self._rearmed = self._reentry_qualifies(closed, re.trigger)
+        if not self._rearmed:
             return
-        self._reacted_closed_id = closed.id
-        if not self._reentry_qualifies(closed, re.trigger):
+        verdict, _ = self._signal_says()
+        if verdict == "wait":
+            return
+        self._rearmed = False
+        if verdict == "skip":
             return
         self._reentries_today += 1
         self._enter(ctx)
@@ -650,6 +700,9 @@ class LegStrategy:
         if self.config.equal_wings:
             orders = _equal_wings(orders, chains)
         ctx.tag(**tags)
+        if self._signals is not None:
+            for c in self.config.entry_signal.conditions:
+                ctx.note(f"entry signal: {self._signals.readout(c)}")
         for i, (key, spec) in enumerate(orders):
             ctx.open(
                 key,
@@ -705,6 +758,15 @@ class LegStrategy:
                     ctx.note(f"position P&L {pnl:+,.0f} reached the {target:,.0f} target")
                     ctx.close_all("mtm target")
                     return
+
+        rule = cfg.exit_signal
+        if rule.conditions and self._signals is not None and ctx.trade and not ctx.pending:
+            if self._signals.met(rule.conditions, rule.join, since=ctx.trade.opened):
+                for c in rule.conditions:
+                    if self._signals.check(c, since=ctx.trade.opened):
+                        ctx.note(f"exit signal: {self._signals.readout(c)}")
+                ctx.close_all("signal exit")
+                return
 
         if cfg.adjust.enabled and not ctx.pending:
             self._adjust(ctx)

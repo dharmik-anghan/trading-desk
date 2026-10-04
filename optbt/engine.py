@@ -233,8 +233,13 @@ class Context:
         self._engine.pending_tags.update(values)
 
     def note(self, text: str) -> None:
+        """Add to the open trade's log - or, with none open, to the log of the
+        trade being opened, like `tag`."""
+        line = f"{self.view.now:%Y-%m-%d %H:%M} {text}"
         if self._engine.trade is not None:
-            self._engine.trade.events.append(f"{self.view.now:%Y-%m-%d %H:%M} {text}")
+            self._engine.trade.events.append(line)
+        else:
+            self._engine.pending_notes.append(line)
 
 
 class Strategy(Protocol):
@@ -275,6 +280,7 @@ class Engine:
         self._abandoned = 0
         self.skipped: dict[str, int] = {}
         self.pending_tags: dict[str, str | float | int | bool | None] = {}
+        self.pending_notes: list[str] = []
         self._banked = 0.0
         self._banked_upto = 0
         self._context: DailyContext | None = None
@@ -345,8 +351,14 @@ class Engine:
             self.skipped["lot size unknown"] = self.skipped.get("lot size unknown", 0) + 1
             return
         if self.trade is None:
-            self.trade = Trade(id=len(self._trades) + 1, opened=ts, tags=dict(self.pending_tags))
+            self.trade = Trade(
+                id=len(self._trades) + 1,
+                opened=ts,
+                tags=dict(self.pending_tags),
+                events=list(self.pending_notes),
+            )
             self.pending_tags.clear()
+            self.pending_notes.clear()
             self._trades.append(self.trade)
         quantity = order.lots * lot_size
         leg = Leg(

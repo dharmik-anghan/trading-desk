@@ -368,6 +368,26 @@ def _preopen_index(conn: sqlite3.Connection) -> None:
         conn.execute(f"ALTER TABLE preopen_day ADD COLUMN {column} REAL")
 
 
+def _sim_sessions(conn: sqlite3.Connection) -> None:
+    """Saved simulator sessions: a moment in the option history and the legs
+    traded by hand around it.
+
+    The legs are kept as the page's own JSON rather than as rows: a session is
+    reopened whole and never queried by leg, and its shape belongs to the page.
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS sim_session (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            underlying TEXT NOT NULL,
+            -- The moment on screen when saved, ISO.
+            at TEXT NOT NULL,
+            state TEXT NOT NULL,
+            saved_at TEXT NOT NULL
+        );
+    """)
+
+
 #: Ordered, append-only. Never edit a step that has shipped.
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(version=1, reason="baseline: the schema init_schema creates", apply=_noop),
@@ -389,6 +409,8 @@ MIGRATIONS: tuple[Migration, ...] = (
               apply=_preopen),
     Migration(version=10, reason="NIFTY 50's own pre-open figure, the gap options open into",
               apply=_preopen_index),
+    Migration(version=11, reason="simulator sessions saved to come back to",
+              apply=_sim_sessions),
 )
 
 

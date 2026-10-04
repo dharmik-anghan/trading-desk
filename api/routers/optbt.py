@@ -240,6 +240,45 @@ class ReEntryIn(BaseModel):
     max_times: int = Field(default=1, ge=1, le=10)
 
 
+class OperandIn(BaseModel):
+    """One side of an indicator condition. See optbt.signals.Operand."""
+
+    model_config = STRICT
+
+    kind: Literal["price", "ema", "sma", "rsi", "supertrend", "level", "number"] = "price"
+    length: int = Field(default=20, ge=1, le=500)
+    mult: float = Field(default=3.0, gt=0, le=20)
+    level: Literal["P", "R1", "R2", "R3", "S1", "S2", "S3", "PDH", "PDL", "PDC", "DO"] = "P"
+    value: float = 0.0
+
+
+class ConditionIn(BaseModel):
+    model_config = STRICT
+
+    left: OperandIn
+    op: Literal["above", "below", "crosses_above", "crosses_below"]
+    right: OperandIn
+    #: Minutes per candle.
+    timeframe: Literal[1, 3, 5, 10, 15, 30, 60] = 5
+
+
+class EntrySignalIn(BaseModel):
+    """Indicator conditions on the entry. See optbt.signals.EntrySignal."""
+
+    model_config = STRICT
+
+    mode: Literal["take_if", "skip_if", "wait"] = "take_if"
+    join: Literal["all", "any"] = "all"
+    conditions: list[ConditionIn] = Field(default_factory=list, max_length=6)
+
+
+class ExitSignalIn(BaseModel):
+    model_config = STRICT
+
+    join: Literal["all", "any"] = "any"
+    conditions: list[ConditionIn] = Field(default_factory=list, max_length=6)
+
+
 class RunRequest(BaseModel):
     """A strategy as legs, and everything that decides what running it means."""
 
@@ -267,6 +306,8 @@ class RunRequest(BaseModel):
     equal_wings: bool = False
     trigger: TriggerIn = Field(default_factory=TriggerIn)
     reentry: ReEntryIn = Field(default_factory=ReEntryIn)
+    entry_signal: EntrySignalIn = Field(default_factory=EntrySignalIn)
+    exit_signal: ExitSignalIn = Field(default_factory=ExitSignalIn)
     #: Slippage per fill as a fraction of premium, and its floor in rupees.
     slippage: float = Field(default=0.003, ge=0, le=0.1)
     min_slip: float = Field(default=0.05, ge=0, le=5)

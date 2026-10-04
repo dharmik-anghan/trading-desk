@@ -106,6 +106,40 @@ export interface OptbtReEntry {
   max_times: number;
 }
 
+/** One side of an indicator condition. Only the fields its kind uses matter. */
+export interface OptbtOperand {
+  kind: "price" | "ema" | "sma" | "rsi" | "supertrend" | "level" | "number";
+  length: number;
+  /** ATR multiple, for supertrend. */
+  mult: number;
+  /** Pivots from yesterday; PDH/PDL/PDC yesterday's high/low/close; DO today's open. */
+  level: "P" | "R1" | "R2" | "R3" | "S1" | "S2" | "S3" | "PDH" | "PDL" | "PDC" | "DO";
+  value: number;
+}
+
+/** Two operands compared on one timeframe's finished candles. */
+export interface OptbtCondition {
+  left: OptbtOperand;
+  op: "above" | "below" | "crosses_above" | "crosses_below";
+  right: OptbtOperand;
+  /** Minutes per candle. */
+  timeframe: 1 | 3 | 5 | 10 | 15 | 30 | 60;
+}
+
+/** take_if: take the entry only if the conditions hold. skip_if: skip it if they
+    do. wait: enter on the first bar they hold, until the exit time. */
+export interface OptbtEntrySignal {
+  mode: "take_if" | "skip_if" | "wait";
+  join: "all" | "any";
+  conditions: OptbtCondition[];
+}
+
+/** Close the whole position when the conditions hold. */
+export interface OptbtExitSignal {
+  join: "all" | "any";
+  conditions: OptbtCondition[];
+}
+
 export interface OptbtRunRequest {
   underlying: string;
   start: string;
@@ -129,6 +163,8 @@ export interface OptbtRunRequest {
   equal_wings: boolean;
   trigger: OptbtTrigger;
   reentry: OptbtReEntry;
+  entry_signal: OptbtEntrySignal;
+  exit_signal: OptbtExitSignal;
   slippage: number;
   min_slip: number;
   brokerage: number;

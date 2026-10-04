@@ -14,6 +14,7 @@ from typing import Any
 
 from optbt.data.models import Kind
 from optbt.engine import Level, Side
+from optbt.signals import Condition, EntrySignal, ExitSignal, Operand
 from optbt.strategies.legs import (
     Adjustment,
     DayFilter,
@@ -31,7 +32,8 @@ from optbt.strategies.legs import (
 #: 3: `trigger` (when the entry fires) and `reentry` (trying it again after the
 #: position goes flat) on the strategy; `width_mult` and `sp_pct` on a leg's
 #: strike. Missing on an older spec, both read as off.
-VERSION = 3
+#: 4: `entry_signal` and `exit_signal`, indicator conditions. Missing, none.
+VERSION = 4
 
 
 def _level_out(level: Level | None) -> dict[str, Any] | None:
@@ -63,6 +65,40 @@ def _expiry_in(raw: Any, days: int = 45) -> ExpiryChoice | None:
 
 def _time_in(raw: str | time) -> time:
     return raw if isinstance(raw, time) else time.fromisoformat(raw)
+
+
+def _operand_out(op: Operand) -> dict[str, Any]:
+    return {
+        "kind": op.kind,
+        "length": op.length,
+        "mult": op.mult,
+        "level": op.level,
+        "value": op.value,
+    }
+
+
+def _conditions_out(conditions: tuple[Condition, ...]) -> list[dict[str, Any]]:
+    return [
+        {
+            "left": _operand_out(c.left),
+            "op": c.op,
+            "right": _operand_out(c.right),
+            "timeframe": c.timeframe,
+        }
+        for c in conditions
+    ]
+
+
+def _conditions_in(raw: list[dict[str, Any]] | None) -> tuple[Condition, ...]:
+    return tuple(
+        Condition(
+            left=Operand(**c["left"]),
+            op=c["op"],
+            right=Operand(**c["right"]),
+            timeframe=int(c.get("timeframe", 5)),
+        )
+        for c in raw or ()
+    )
 
 
 def to_dict(config: LegsConfig) -> dict[str, Any]:
@@ -136,6 +172,15 @@ def to_dict(config: LegsConfig) -> dict[str, Any]:
             "trigger": config.reentry.trigger,
             "max_times": config.reentry.max_times,
         },
+        "entry_signal": {
+            "mode": config.entry_signal.mode,
+            "join": config.entry_signal.join,
+            "conditions": _conditions_out(config.entry_signal.conditions),
+        },
+        "exit_signal": {
+            "join": config.exit_signal.join,
+            "conditions": _conditions_out(config.exit_signal.conditions),
+        },
     }
 
 
@@ -152,6 +197,8 @@ def from_dict(raw: dict[str, Any]) -> LegsConfig:
     adjust = raw.get("adjust") or {}
     trigger = raw.get("trigger") or {}
     reentry = raw.get("reentry") or {}
+    entry_signal = raw.get("entry_signal") or {}
+    exit_signal = raw.get("exit_signal") or {}
     defaults = LegsConfig(legs=())
     return LegsConfig(
         legs=tuple(
@@ -189,4 +236,13 @@ def from_dict(raw: dict[str, Any]) -> LegsConfig:
             }
         ),
         reentry=ReEntry(**reentry),
+        entry_signal=EntrySignal(
+            mode=entry_signal.get("mode", "take_if"),
+            join=entry_signal.get("join", "all"),
+            conditions=_conditions_in(entry_signal.get("conditions")),
+        ),
+        exit_signal=ExitSignal(
+            join=exit_signal.get("join", "any"),
+            conditions=_conditions_in(exit_signal.get("conditions")),
+        ),
     )

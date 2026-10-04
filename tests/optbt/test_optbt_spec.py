@@ -10,6 +10,7 @@ import pytest
 from api.routers.optbt import RunRequest
 from optbt.data.models import Kind
 from optbt.engine import Level, Side
+from optbt.signals import Condition, EntrySignal, ExitSignal, Operand
 from optbt.spec import VERSION, from_dict, to_dict
 from optbt.strategies.legs import (
     Adjustment,
@@ -80,6 +81,25 @@ CONFIGS = {
         ),
     ),
     "condor preset": LegsConfig(legs=iron_condor(), hold="expiry"),
+    "straddle on signals": LegsConfig(
+        legs=straddle(),
+        entry_signal=EntrySignal(
+            mode="wait",
+            join="any",
+            conditions=(
+                Condition(Operand("price"), "crosses_below", Operand("ema", length=20), 5),
+                Condition(Operand("rsi", length=14), "above", Operand("number", value=60), 15),
+            ),
+        ),
+        exit_signal=ExitSignal(
+            conditions=(
+                Condition(Operand("price"), "above", Operand("level", level="R1"), 1),
+                Condition(
+                    Operand("price"), "below", Operand("supertrend", length=10, mult=2.5), 3
+                ),
+            ),
+        ),
+    ),
 }
 
 
