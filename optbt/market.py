@@ -130,6 +130,22 @@ class View:
     def spot(self) -> float:
         return self._bars[self._i].close
 
+    def bar(self) -> Bar:
+        """The index's last closed bar, whole."""
+        return self._bars[self._i]
+
+    def sessions_before(self, count: int) -> list[list[Bar]]:
+        """The index's bars for up to `count` sessions before today, oldest first.
+
+        Earlier sessions only, so nothing here can be from a bar not yet closed.
+        """
+        if count <= 0:
+            return []
+        # Seven calendar days hold at least three sessions, even around Diwali.
+        earliest = self.day - timedelta(days=count * 7 // 3 + 7)
+        days = [d for d in self._history.trading_days(earliest, self.day) if d < self.day]
+        return [bars for d in days[-count:] if (bars := self._history.index_day(d))]
+
     def expiries(self) -> list[date]:
         """Expiries not yet passed, nearest first."""
         return [e for e in self._history.expiries() if e >= self.day]

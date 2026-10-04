@@ -4,6 +4,8 @@ import type {
   OptbtAdjust,
   OptbtCoverage,
   OptbtDays,
+  OptbtEntrySignal,
+  OptbtExitSignal,
   OptbtExpiryChoice,
   OptbtReEntry,
   OptbtResult,
@@ -14,6 +16,7 @@ import { LegRow } from "./optbt/LegRow";
 import { OptResult } from "./optbt/OptResult";
 import { OPENED } from "./optbt/explore";
 import { ExpiryPicker } from "./optbt/ExpiryPicker";
+import { SignalRows } from "./optbt/SignalRows";
 import { NEAREST_WEEKLY, PRESETS, copyLeg, leg, toRequest } from "./optbt/legs";
 import type { LegDraft } from "./optbt/legs";
 
@@ -101,6 +104,12 @@ export function OptionBacktesting({ onHome }: Props) {
     trigger: "leg_stop",
     max_times: 1,
   });
+  const [entrySignal, setEntrySignal] = useState<OptbtEntrySignal>({
+    mode: "take_if",
+    join: "all",
+    conditions: [],
+  });
+  const [exitSignal, setExitSignal] = useState<OptbtExitSignal>({ join: "any", conditions: [] });
   const [trail, setTrail] = useState(false);
   const [slippage, setSlippage] = useState(0.3);
   const [minSlip, setMinSlip] = useState(0.05);
@@ -167,6 +176,8 @@ export function OptionBacktesting({ onHome }: Props) {
       equal_wings: equalWings,
       trigger,
       reentry: { ...reentry, enabled: reentry.enabled && hold === "intraday" },
+      entry_signal: entrySignal,
+      exit_signal: exitSignal,
       slippage: slippage / 100,
       min_slip: minSlip,
       brokerage,
@@ -424,6 +435,49 @@ export function OptionBacktesting({ onHome }: Props) {
 
         <details className="ob-more">
           <summary>
+            Indicators
+            {entrySignal.conditions.length + exitSignal.conditions.length > 0 && (
+              <em>{entrySignal.conditions.length + exitSignal.conditions.length}</em>
+            )}
+          </summary>
+          <div className="ob-sig">
+            <div className="ob-sighead">
+              <span>Entry</span>
+              <select
+                value={entrySignal.mode}
+                onChange={(e) =>
+                  setEntrySignal({ ...entrySignal, mode: e.target.value as OptbtEntrySignal["mode"] })
+                }
+                aria-label="What the entry conditions do"
+                title="Take only if / skip if: judged once, at the entry. Wait until: enters on the first bar they hold, up to the exit time; also applies to re-entries."
+              >
+                <option value="take_if">Take only if</option>
+                <option value="skip_if">Skip if</option>
+                <option value="wait">Wait until</option>
+              </select>
+              {entrySignal.conditions.length > 1 && (
+                <Join value={entrySignal.join} onChange={(join) => setEntrySignal({ ...entrySignal, join })} />
+              )}
+            </div>
+            <SignalRows
+              value={entrySignal.conditions}
+              onChange={(conditions) => setEntrySignal({ ...entrySignal, conditions })}
+            />
+            <div className="ob-sighead">
+              <span>Exit when</span>
+              {exitSignal.conditions.length > 1 && (
+                <Join value={exitSignal.join} onChange={(join) => setExitSignal({ ...exitSignal, join })} />
+              )}
+            </div>
+            <SignalRows
+              value={exitSignal.conditions}
+              onChange={(conditions) => setExitSignal({ ...exitSignal, conditions })}
+            />
+          </div>
+        </details>
+
+        <details className="ob-more">
+          <summary>
             Exit the whole position{exits > 0 && <em>{exits}</em>}
           </summary>
           <div className="ob-grid">
@@ -610,6 +664,15 @@ export function OptionBacktesting({ onHome }: Props) {
         <OptResult result={result} stale={running} finishedAt={finished.at} seconds={finished.seconds} />
       )}
     </main>
+  );
+}
+
+function Join({ value, onChange }: { value: "all" | "any"; onChange: (v: "all" | "any") => void }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value as "all" | "any")} aria-label="How conditions combine">
+      <option value="all">all of these</option>
+      <option value="any">any of these</option>
+    </select>
   );
 }
 

@@ -65,6 +65,8 @@ class Day:
     low: float
     close: float
     prev_close: float | None
+    prev_high: float | None
+    prev_low: float | None
     #: From the previous session. None on the first day of the data.
     pivots: Pivots | None
     vix_close: float | None
@@ -96,6 +98,8 @@ class Context:
                 low=lo,
                 close=c,
                 prev_close=prev[2] if prev else None,
+                prev_high=prev[0] if prev else None,
+                prev_low=prev[1] if prev else None,
                 pivots=Pivots.of(*prev) if prev else None,
                 vix_close=vix.get(d),
             )

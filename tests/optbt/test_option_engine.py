@@ -1081,3 +1081,179 @@ def test_sp_pct_strike_targets_a_share_of_the_straddle_premium() -> None:
     rule = StrikeRule(mode="sp_pct", sp_pct=25.0)
     strike, why = pick_strike(chain, 23450.0, Kind.CALL, rule)
     assert (strike, why) == (23600.0, "")
+
+
+# ------------------------------------------------------- indicator signals
+
+
+def _signal_market(changes: dict[time, tuple[float, float, float, float]]) -> Market:
+    m = Market()
+    m.index(DAY, changes=changes)
+    for strike in (23400.0, 23450.0, 23500.0, 23550.0):
+        m.option(DAY, strike, Kind.CALL, 100.0)
+        m.option(DAY, strike, Kind.PUT, 100.0)
+    return m
+
+
+def _spot(op: str, level: float, timeframe: int = 1):  # type: ignore[no-untyped-def]
+    from optbt.signals import Condition, Operand
+
+    return Condition(Operand("price"), op, Operand("number", value=level), timeframe)  # type: ignore[arg-type]
+
+
+#: Spot drops from 23,450 to 23,430 on the 10:00 bar and stays there.
+DIP_AT_10 = {time(10, 0): (23450.0, 23450.0, 23430.0, 23430.0)}
+
+
+def test_wait_enters_once_spot_is_below_a_level_rather_than_at_the_entry_time() -> None:
+    """"Take the trade once price is below 23,440 again": nothing at 09:20 -
+    spot is 23,450 - and no five-minute grace either. The 10:00 bar closes at
+    23,430, so the sale fills in the 10:01 bar."""
+    from optbt.signals import EntrySignal
+
+    config = LegsConfig(
+        legs=(LegSpec(Side.SELL, Kind.CALL),),
+        entry_signal=EntrySignal(mode="wait", conditions=(_spot("below", 23440),)),
+    )
+    result = _run(_signal_market(DIP_AT_10), config)
+    (trade,) = result.trades
+    assert trade.legs[0].entry_ts.time() == time(10, 1)
+    assert any("entry signal: spot 23,430.00 below 23440 on 1m" in e for e in trade.events)
+
+
+def test_wait_on_a_five_minute_candle_waits_for_that_candle_to_finish() -> None:
+    """The dip is inside the 10:00-10:04 candle, which finishes on the 10:04
+    bar's close: the sale fills at 10:05, not 10:01."""
+    from optbt.signals import EntrySignal
+
+    config = LegsConfig(
+        legs=(LegSpec(Side.SELL, Kind.CALL),),
+        entry_signal=EntrySignal(mode="wait", conditions=(_spot("below", 23440, 5),)),
+    )
+    (trade,) = _run(_signal_market(DIP_AT_10), config).trades
+    assert trade.legs[0].entry_ts.time() == time(10, 5)
+
+
+def test_a_signal_that_never_comes_is_a_day_not_traded_and_counted() -> None:
+    from optbt.signals import EntrySignal
+
+    config = LegsConfig(
+        legs=(LegSpec(Side.SELL, Kind.CALL),),
+        entry_signal=EntrySignal(mode="wait", conditions=(_spot("below", 23000),)),
+    )
+    result = _run(_signal_market(DIP_AT_10), config)
+    assert result.trades == []
+    assert result.skipped == {"entry signal never came": 1}
+
+
+@pytest.mark.parametrize(
+    ("mode", "level", "trades", "skipped"),
+    [
+        ("take_if", 23400, 1, {}),
+        ("take_if", 23500, 0, {"entry signal: not met": 1}),
+        ("skip_if", 23400, 0, {"entry signal: met": 1}),
+        ("skip_if", 23500, 1, {}),
+    ],
+)
+def test_take_if_and_skip_if_judge_the_moment_of_entry(
+    mode: str, level: float, trades: int, skipped: dict[str, int]
+) -> None:
+    """At 09:20 spot is 23,450: above 23,400, not above 23,500. Judged once -
+    the dip later in the day does not bring a skipped entry back."""
+    from optbt.signals import EntrySignal
+
+    config = LegsConfig(
+        legs=(LegSpec(Side.SELL, Kind.CALL),),
+        entry_signal=EntrySignal(mode=mode, conditions=(_spot("above", level),)),  # type: ignore[arg-type]
+    )
+    result = _run(_signal_market(DIP_AT_10), config)
+    assert len(result.trades) == trades
+    assert result.skipped == skipped
+    if trades:
+        assert result.trades[0].legs[0].entry_ts.time() == time(9, 20)
+
+
+def test_an_exit_signal_closes_the_position_on_the_next_bar() -> None:
+    """Sold at 09:20; spot crosses below 23,440 on the 10:00 bar's close, so
+    both legs are bought back in the 10:01 bar - long before 15:15."""
+    from optbt.signals import ExitSignal
+    from optbt.strategies.legs import straddle
+
+    config = LegsConfig(
+        legs=straddle(stop=None),
+        exit_signal=ExitSignal(conditions=(_spot("crosses_below", 23440),)),
+    )
+    (trade,) = _run(_signal_market(DIP_AT_10), config).trades
+    assert trade.reason == "signal exit"
+    assert {leg.exit_ts.time() for leg in trade.legs if leg.exit_ts} == {time(10, 1)}
+    assert any("exit signal: spot 23,430.00 crosses below 23440 on 1m" in e for e in trade.events)
+
+
+def test_a_cross_from_before_the_entry_does_not_close_the_trade() -> None:
+    """Waiting for spot below 23,440 and exiting on a cross below it: the cross
+    that made the entry is not also its exit."""
+    from optbt.signals import EntrySignal, ExitSignal
+
+    config = LegsConfig(
+        legs=(LegSpec(Side.SELL, Kind.CALL),),
+        entry_signal=EntrySignal(mode="wait", conditions=(_spot("below", 23440),)),
+        exit_signal=ExitSignal(conditions=(_spot("crosses_below", 23440),)),
+    )
+    (trade,) = _run(_signal_market(DIP_AT_10), config).trades
+    assert trade.reason == "time"
+
+
+def test_a_pivot_level_comes_from_the_previous_session() -> None:
+    """Friday ranges 23,400-23,500 and closes at 23,450: P 23,450, R1 23,500.
+    On Monday spot reaches 23,510 at 10:00, and a wait for spot above R1
+    sells in the 10:01 bar."""
+    from optbt.signals import Condition, EntrySignal, Operand
+
+    friday = DAY - timedelta(days=3)
+    m = _signal_market({time(10, 0): (23450.0, 23510.0, 23450.0, 23510.0)})
+    m.index(
+        friday,
+        changes={
+            time(11, 0): (23450.0, 23500.0, 23450.0, 23450.0),
+            time(12, 0): (23450.0, 23450.0, 23400.0, 23450.0),
+        },
+    )
+    above_r1 = Condition(Operand("price"), "above", Operand("level", level="R1"), 1)
+    config = LegsConfig(
+        legs=(LegSpec(Side.SELL, Kind.CALL),),
+        entry_signal=EntrySignal(mode="wait", conditions=(above_r1,)),
+    )
+    (trade,) = _run(m, config).trades
+    assert trade.legs[0].entry_ts.time() == time(10, 1)
+    assert any("R1 23,500.00" in e for e in trade.events)
+
+
+def test_a_reentry_waits_for_the_entry_signal_too() -> None:
+    """The 10:00 stop-out comes with spot at 23,460 - above the 23,455 the
+    entry waits to be below. Spot is back at 23,450 on the 11:00 bar, so the
+    re-entry sells in the 11:01 bar rather than straight after the stop."""
+    from optbt.signals import EntrySignal
+    from optbt.strategies.legs import ReEntry
+
+    m = Market()
+    m.index(
+        DAY,
+        changes={
+            time(10, 0): (23450.0, 23460.0, 23450.0, 23460.0),
+            time(11, 0): (23460.0, 23460.0, 23450.0, 23450.0),
+        },
+    )
+    for strike in (23400.0, 23450.0, 23500.0):
+        ce = {time(10, 0): (100.0, 120.0, 100.0, 120.0)} if strike == 23450 else None
+        m.option(DAY, strike, Kind.CALL, 100.0, changes=ce)
+        m.option(DAY, strike, Kind.PUT, 100.0)
+    config = LegsConfig(
+        legs=(LegSpec(Side.SELL, Kind.CALL), LegSpec(Side.SELL, Kind.PUT)),
+        mtm_stop=1000,
+        reentry=ReEntry(enabled=True, trigger="mtm_stop", max_times=1),
+        entry_signal=EntrySignal(mode="wait", conditions=(_spot("below", 23455),)),
+    )
+    first, second = _run(m, config).trades
+    assert first.legs[0].entry_ts.time() == time(9, 20)
+    assert first.reason == "mtm stop"
+    assert [leg.entry_ts.time() for leg in second.legs] == [time(11, 1)] * 2

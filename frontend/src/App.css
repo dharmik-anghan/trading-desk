@@ -5111,3 +5111,62 @@ a.nitem:hover .nhead {
     overflow-x: auto;
   }
 }
+
+/* Indicator conditions: one row each, read left to right. */
+.ob-sig {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 4px 17px;
+}
+.ob-sighead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.ob-sighead span {
+  min-width: 62px;
+}
+.ob-sighead:not(:first-child) {
+  margin-top: 8px;
+}
+.ob-conds {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ob-cond {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+.ob-operand {
+  display: inline-flex;
+  gap: 4px;
+}
+.ob-operand input {
+  width: 52px;
+}
+.ob-operand input.wide {
+  width: 80px;
+}
+.ob-x {
+  height: 24px;
+  padding: 0 8px;
+  font: 12px var(--n);
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ob-x:hover {
+  color: var(--fg);
+  border-color: var(--you);
+}
+

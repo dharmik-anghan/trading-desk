@@ -23,6 +23,7 @@ from analytics.indicators import (
     pivots,
     rsi,
     sma,
+    supertrend,
     true_range,
 )
 from marketdata.models import Bar
@@ -84,6 +85,7 @@ def test_no_indicator_can_see_past_the_bar_it_is_computed_for(cut: int) -> None:
         "rsi": rsi(prices, 14),
         "atr": atr(bars, 14),
         "tr": true_range(bars),
+        "supertrend": supertrend(bars, 10, 3.0),
     }
     truncated: dict[str, Line] = {
         "sma": sma(prices[:cut], 20),
@@ -91,6 +93,7 @@ def test_no_indicator_can_see_past_the_bar_it_is_computed_for(cut: int) -> None:
         "rsi": rsi(prices[:cut], 14),
         "atr": atr(bars[:cut], 14),
         "tr": true_range(bars[:cut]),
+        "supertrend": supertrend(bars[:cut], 10, 3.0),
     }
 
     for name, line in everything.items():
@@ -367,3 +370,20 @@ def test_the_gap_and_its_rank_cannot_see_the_bar_they_are_on() -> None:
     truncated = pivot_gap_rank(bars[:150], 20)
 
     assert everything[:150] == truncated
+
+
+def test_supertrend_starts_above_price_and_flips_below_on_a_close_through_it() -> None:
+    """Flat at 100 with a 2-point range: ATR(2) is 2, the bands 100 +/- 6, and
+    the line starts on the upper one, 106. A close at 110 crosses it, so the
+    line jumps to the lower band. That bar's own lower band would be 89 (its
+    midpoint 108.5 less three of its ATR), but a lower band only ever rises
+    while price stays above it, so the line is the 94 it already stood at."""
+    rows = [(100.0, 101.0, 99.0, 100.0)] * 4 + [(100.0, 111.0, 106.0, 110.0)]
+    line = supertrend(_bars(rows), length=2, multiplier=3.0)
+    assert line[:2] == [None, None]
+    assert line[2] == pytest.approx(106.0)
+    assert line[3] == pytest.approx(106.0)
+    # True range of the jump bar: max(5, 11, 6) = 11; ATR = (2 + 11) / 2 = 6.5.
+    assert 108.5 - 3 * 6.5 == pytest.approx(89.0)
+    assert line[4] == pytest.approx(94.0)
+    assert line[4] < rows[4][3]
