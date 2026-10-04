@@ -73,6 +73,35 @@ CREATE TABLE IF NOT EXISTS option_bar (
     oi         BIGINT    NOT NULL
 );
 
+-- Contracts still trading, fetched so far: kept apart from the ledger above, which
+-- holds a contract only once its every bar is in. When the expiry settles and the
+-- backfill writes a contract whole, its rows here go in the same transaction.
+CREATE TABLE IF NOT EXISTS live_contract (
+    symbol     VARCHAR   PRIMARY KEY,
+    underlying VARCHAR   NOT NULL,
+    expiry     DATE      NOT NULL,
+    kind       VARCHAR   NOT NULL,
+    strike     DOUBLE,
+    bars       INTEGER   NOT NULL,
+    -- The last bar held: the contract is known up to here and no further.
+    last_ts    TIMESTAMP,
+    fetched_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS live_bar (
+    underlying VARCHAR   NOT NULL,
+    expiry     DATE      NOT NULL,
+    kind       VARCHAR   NOT NULL,
+    strike     DOUBLE,
+    ts         TIMESTAMP NOT NULL,
+    open       DOUBLE    NOT NULL,
+    high       DOUBLE    NOT NULL,
+    low        DOUBLE    NOT NULL,
+    close      DOUBLE    NOT NULL,
+    volume     BIGINT    NOT NULL,
+    oi         BIGINT    NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS index_bar (
     symbol     VARCHAR   NOT NULL,
     resolution VARCHAR   NOT NULL,
@@ -115,8 +144,13 @@ def connect(path: str, *, read_only: bool, wait: float = LOCK_WAIT) -> duckdb.Du
     while True:
         try:
             return duckdb.connect(path, read_only=read_only)
-        except duckdb.IOException as exc:
-            if "lock" not in str(exc).lower() or time.monotonic() >= deadline:
+        except (duckdb.IOException, duckdb.ConnectionException) as exc:
+            # Another process's lock, or - inside one process - a reader and a
+            # writer at once, which DuckDB refuses as "a different configuration"
+            # rather than as a lock. Both pass as soon as the other lets go.
+            text = str(exc).lower()
+            busy = "lock" in text or "different configuration" in text
+            if not busy or time.monotonic() >= deadline:
                 raise
             time.sleep(delay)
             delay = min(delay * 2, 1.0)
@@ -235,11 +269,77 @@ class OptionStore:
                     "AS incoming(ts, open, high, low, close, volume, oi)",
                     [contract.underlying, contract.expiry, str(contract.kind), contract.strike],
                 )
+            # Held whole now: what was fetched of it while it traded goes.
+            self._drop_live(contract)
             self._conn.execute("COMMIT")
         except BaseException:
             self._conn.execute("ROLLBACK")
             raise
         return len(ordered)
+
+    # -------------------------------------------------------------------- live
+
+    def _drop_live(self, contract: Contract) -> None:
+        self._conn.execute(
+            "DELETE FROM live_bar WHERE underlying = ? AND expiry = ? AND kind = ? "
+            "AND strike IS NOT DISTINCT FROM ?",
+            [contract.underlying, contract.expiry, str(contract.kind), contract.strike],
+        )
+        self._conn.execute("DELETE FROM live_contract WHERE symbol = ?", [contract.symbol])
+
+    @_sessioned
+    def write_live(
+        self, contract: Contract, candles: Sequence[Candle], *, fetched_at: datetime
+    ) -> int:
+        """A trading contract's bars so far, replacing what was held of it.
+
+        Whole rather than appended: a refresh asks for the contract from its
+        listing again - one request for a weekly - so there is no seam between
+        two fetches to get wrong. A contract already held whole is left alone.
+        """
+        if self.held([contract.symbol]):
+            return 0
+        latest = {c.ts: c for c in candles}
+        ordered = [latest[ts] for ts in sorted(latest)]
+        self._conn.execute("BEGIN TRANSACTION")
+        try:
+            self._drop_live(contract)
+            self._conn.execute(
+                "INSERT INTO live_contract VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    contract.symbol,
+                    contract.underlying,
+                    contract.expiry,
+                    str(contract.kind),
+                    contract.strike,
+                    len(ordered),
+                    ordered[-1].ts if ordered else None,
+                    fetched_at,
+                ],
+            )
+            if ordered:
+                self._conn.execute(
+                    "INSERT INTO live_bar SELECT ?, ?, ?, ?, ts, open, high, low, close, "
+                    f"volume, oi FROM (VALUES {_values(ordered)}) "
+                    "AS incoming(ts, open, high, low, close, volume, oi)",
+                    [contract.underlying, contract.expiry, str(contract.kind), contract.strike],
+                )
+            self._conn.execute("COMMIT")
+        except BaseException:
+            self._conn.execute("ROLLBACK")
+            raise
+        return len(ordered)
+
+    @_sessioned
+    def live_through(self, symbols: Sequence[str]) -> dict[str, datetime | None]:
+        """Of these trading contracts, the ones fetched, and their last bar held."""
+        if not symbols:
+            return {}
+        rows = self._conn.execute(
+            "SELECT symbol, last_ts FROM live_contract WHERE symbol IN (SELECT unnest(?))",
+            [list(symbols)],
+        ).fetchall()
+        return {row[0]: row[1] for row in rows}
 
     # ------------------------------------------------------------------ index
 

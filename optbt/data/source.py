@@ -33,3 +33,14 @@ class ExpiredSource(Protocol):
     def index_candles(
         self, symbol: str, resolution: str, start: date, end: date
     ) -> list[Candle]: ...
+
+
+class LiveSource(ExpiredSource, Protocol):
+    """A source that also serves contracts still trading - up to yesterday."""
+
+    def live_expiries(self, underlying: str) -> list[tuple[date, bool]]:
+        """Expiries still trading, nearest first, with whether each is a monthly."""
+        ...
+
+    #: Seconds between requests; settable, to share a rate limit.
+    interval: float

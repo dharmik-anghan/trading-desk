@@ -29,7 +29,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from broker.errors import AuthFailed, BrokerError, RateLimited, classify_status
@@ -98,11 +98,14 @@ class FyersExpired:
         self._sleep = sleep
         self._clock = clock
         self._last = -MIN_INTERVAL
+        #: Seconds between requests. Raised while the market is open, when the
+        #: desk spends the same budget on prices.
+        self.interval = MIN_INTERVAL
         self.requests = 0
 
     def _call(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         for attempt in range(1, MAX_ATTEMPTS + 1):
-            wait = self._last + MIN_INTERVAL - self._clock()
+            wait = self._last + self.interval - self._clock()
             if wait > 0:
                 self._sleep(wait)
             self._last = self._clock()
@@ -180,6 +183,23 @@ class FyersExpired:
             options=tuple(sorted(date.fromisoformat(d) for d in found.get("options", []))),
             futures=tuple(sorted(date.fromisoformat(d) for d in found.get("futures", []))),
         )
+
+    def live_expiries(self, underlying: str) -> list[tuple[date, bool]]:
+        """Expiries still trading, nearest first, each with whether it is a monthly.
+
+        From the live option chain: `expiry_dates` refuses any range that reaches
+        today, so it cannot name an expiry that has not settled.
+        """
+        response = self._call(
+            "optionchain",
+            {"symbol": OPTION_SERIES[underlying], "strikecount": 1, "timestamp": ""},
+        )
+        found = response["data"].get("expiryData") or []
+        out = [
+            (datetime.strptime(e["date"], "%d-%m-%Y").date(), e.get("expiry_flag") == "M")
+            for e in found
+        ]
+        return sorted(out)
 
     def contracts(self, underlying: str, expiry: date) -> list[Contract]:
         response = self._call(

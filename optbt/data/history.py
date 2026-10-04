@@ -83,6 +83,21 @@ class History:
         self._prev: dict[tuple[OptionKey, date], tuple[datetime, float] | None] = {}
         self._expiries: list[date] | None = None
         self._monthlies: list[date] | None = None
+        # Contracts still trading live in their own table until they settle (see
+        # optbt/data/store.py); every read sees both. A store written before that
+        # table existed has only the one.
+        live = conn.execute(
+            "SELECT count(*) FROM duckdb_tables() WHERE table_name = 'live_bar'"
+        ).fetchone()
+        self._bars = (
+            "(SELECT * FROM option_bar UNION ALL SELECT * FROM live_bar)"
+            if live and live[0]
+            else "option_bar"
+        )
+
+    def _q(self, sql: str, params: Sequence[object] | None = None) -> duckdb.DuckDBPyConnection:
+        """A query, reading option bars from settled and trading contracts alike."""
+        return self._conn.execute(sql.replace("option_bar", self._bars), params)
 
     @classmethod
     def open(cls, path: Path | str, underlying: str = "NIFTY", *, wait: float = 30.0) -> History:
@@ -98,13 +113,13 @@ class History:
 
     def underlyings(self) -> list[str]:
         """Every underlying the store holds option bars for."""
-        rows = self._conn.execute(
+        rows = self._q(
             "SELECT DISTINCT underlying FROM contract WHERE bars > 0 ORDER BY 1"
         ).fetchall()
         return [r[0] for r in rows]
 
     def coverage(self) -> Coverage:
-        held = self._conn.execute(
+        held = self._q(
             "SELECT count(DISTINCT expiry), min(expiry), max(expiry), count(*), "
             "coalesce(sum(bars), 0) FROM contract WHERE underlying = ? AND kind <> 'FUT'",
             [self.underlying],
@@ -112,14 +127,14 @@ class History:
         # Not the first option bar - a long-dated contract's listing reaches back
         # to 2021, eighteen months before any index data, which made that the
         # default start of every run.
-        days = self._conn.execute(
+        days = self._q(
             "SELECT greatest(min(CAST(i.ts AS DATE)), (SELECT min(CAST(ts AS DATE)) "
             "FROM option_bar WHERE underlying = ?)), least(max(CAST(i.ts AS DATE)), "
             "(SELECT max(CAST(ts AS DATE)) FROM option_bar WHERE underlying = ?)) "
             "FROM index_bar i WHERE i.symbol = ?",
             [self.underlying, self.underlying, self.index_symbol],
         ).fetchone()
-        listed = self._conn.execute(
+        listed = self._q(
             "SELECT count(*) FROM expiry WHERE underlying = ? AND kind = 'options' "
             "AND expiry < current_date",
             [self.underlying],
@@ -139,7 +154,7 @@ class History:
     # ------------------------------------------------------------- calendar
 
     def trading_days(self, start: date, end: date) -> list[date]:
-        rows = self._conn.execute(
+        rows = self._q(
             "SELECT DISTINCT CAST(ts AS DATE) AS d FROM index_bar "
             "WHERE symbol = ? AND ts >= ? AND ts < ? + INTERVAL 1 DAY ORDER BY d",
             [self.index_symbol, start, end],
@@ -148,7 +163,7 @@ class History:
 
     def next_trading_day(self, day: date) -> date | None:
         """The first session after `day`, or None past the end of the data."""
-        row = self._conn.execute(
+        row = self._q(
             "SELECT min(CAST(ts AS DATE)) FROM index_bar "
             "WHERE symbol = ? AND ts >= ? + INTERVAL 1 DAY",
             [self.index_symbol, day],
@@ -165,7 +180,7 @@ class History:
         chain comes back empty and the day is skipped, visibly.
         """
         if self._expiries is None:
-            rows = self._conn.execute(
+            rows = self._q(
                 "SELECT expiry FROM expiry WHERE underlying = ? AND kind = 'options' "
                 "ORDER BY expiry",
                 [self.underlying],
@@ -176,7 +191,7 @@ class History:
     def monthly_expiries(self) -> list[date]:
         """The monthly expiries: those futures expire on too."""
         if self._monthlies is None:
-            rows = self._conn.execute(
+            rows = self._q(
                 "SELECT expiry FROM expiry WHERE underlying = ? AND kind = 'futures' "
                 "ORDER BY expiry",
                 [self.underlying],
@@ -188,7 +203,7 @@ class History:
 
     def daily(self, symbol: str) -> list[tuple[date, float, float, float, float]]:
         """`symbol`'s sessions as (day, open, high, low, close), from its minute bars."""
-        rows = self._conn.execute(
+        rows = self._q(
             """
             SELECT CAST(ts AS DATE) AS d, arg_min(open, ts), max(high), min(low), arg_max(close, ts)
             FROM index_bar WHERE symbol = ? AND resolution = '1'
@@ -201,7 +216,7 @@ class History:
 
     def close_at(self, symbol: str, ts: datetime) -> float | None:
         """`symbol`'s close at the bar named `ts`, or the last one before it that day."""
-        row = self._conn.execute(
+        row = self._q(
             "SELECT close FROM index_bar WHERE symbol = ? AND resolution = '1' "
             "AND ts <= ? AND ts >= ? ORDER BY ts DESC LIMIT 1",
             [symbol, ts, datetime.combine(ts.date(), time(0))],
@@ -212,7 +227,7 @@ class History:
     def index_day(self, day: date) -> list[Bar]:
         """The index's session bars for a day, in order."""
         if day not in self._index:
-            rows = self._conn.execute(
+            rows = self._q(
                 "SELECT ts, open, high, low, close, volume FROM index_bar "
                 "WHERE symbol = ? AND resolution = '1' AND ts >= ? AND ts <= ? ORDER BY ts",
                 [
@@ -232,7 +247,7 @@ class History:
         if cache_key not in self._contract:
             if len(self._contract) > 512:
                 self._contract.clear()
-            rows = self._conn.execute(
+            rows = self._q(
                 "SELECT ts, open, high, low, close, volume FROM option_bar "
                 "WHERE underlying = ? AND expiry = ? AND strike = ? AND kind = ? "
                 "AND ts >= ? AND ts <= ?",
@@ -253,7 +268,7 @@ class History:
         None if it never had. Cached: asked every minute of a day it is quiet."""
         cache_key = (key, day)
         if cache_key not in self._prev:
-            row = self._conn.execute(
+            row = self._q(
                 "SELECT ts, close FROM option_bar WHERE underlying = ? AND expiry = ? "
                 "AND strike = ? AND kind = ? AND ts < ? ORDER BY ts DESC LIMIT 1",
                 [self.underlying, key.expiry, key.strike, str(key.kind), day],
@@ -263,7 +278,7 @@ class History:
 
     def chain_at(self, expiry: date, ts: datetime) -> list[Quote]:
         """Every contract of one expiry, at the close of the bar named `ts`."""
-        rows = self._conn.execute(
+        rows = self._q(
             "SELECT strike, kind, close, volume, oi FROM option_bar "
             "WHERE underlying = ? AND expiry = ? AND ts = ? AND kind <> 'FUT' "
             "ORDER BY strike, kind",
@@ -289,7 +304,7 @@ class History:
         still there, at its last price - with `last_at` saying how old it is.
         """
         day_start = datetime.combine(ts.date(), SESSION_OPEN)
-        rows = self._conn.execute(
+        rows = self._q(
             "SELECT strike, kind, arg_max(close, ts), max(ts), arg_max(oi, ts), "
             "coalesce(sum(volume) FILTER (WHERE ts >= ?), 0) "
             "FROM option_bar WHERE underlying = ? AND expiry = ? AND kind <> 'FUT' "
@@ -309,7 +324,7 @@ class History:
 
     def price_asof(self, key: OptionKey, ts: datetime) -> tuple[datetime, float] | None:
         """One contract's last trade at or before the close of the bar named `ts`."""
-        row = self._conn.execute(
+        row = self._q(
             "SELECT ts, close FROM option_bar WHERE underlying = ? AND expiry = ? "
             "AND strike = ? AND kind = ? AND ts <= ? AND ts >= ? ORDER BY ts DESC LIMIT 1",
             [self.underlying, key.expiry, key.strike, str(key.kind), ts, ts - self.ASOF_LOOKBACK],
@@ -318,12 +333,34 @@ class History:
 
     def future_asof(self, ts: datetime) -> tuple[date, float] | None:
         """The nearest futures contract's last trade at or before `ts`, and its expiry."""
-        row = self._conn.execute(
+        row = self._q(
             "SELECT expiry, close FROM option_bar WHERE underlying = ? AND kind = 'FUT' "
             "AND expiry >= ? AND ts <= ? AND ts >= ? ORDER BY expiry, ts DESC LIMIT 1",
             [self.underlying, ts.date(), ts, ts - self.ASOF_LOOKBACK],
         ).fetchone()
         return (row[0], float(row[1])) if row else None
+
+    def expiry_status(self, expiries: Sequence[date]) -> dict[date, tuple[str, datetime | None]]:
+        """Each expiry's state in the store: "held" (settled, fetched whole),
+        "live" (fetched while trading, up to the time given), or "missing"."""
+        if not expiries:
+            return {}
+        out: dict[date, tuple[str, datetime | None]] = {e: ("missing", None) for e in expiries}
+        if self._bars != "option_bar":
+            for e, last in self._conn.execute(
+                # Options only: a monthly's future is fetched for its price alone.
+                "SELECT expiry, max(last_ts) FROM live_contract WHERE underlying = ? "
+                "AND kind <> 'FUT' AND expiry IN (SELECT unnest(?)) GROUP BY expiry",
+                [self.underlying, list(expiries)],
+            ).fetchall():
+                out[e] = ("live", last)
+        for (e,) in self._conn.execute(
+            "SELECT DISTINCT expiry FROM contract WHERE underlying = ? AND kind <> 'FUT' "
+            "AND expiry IN (SELECT unnest(?))",
+            [self.underlying, list(expiries)],
+        ).fetchall():
+            out[e] = ("held", None)
+        return out
 
     def lot_size(self, day: date, expiry: date) -> int:
         """The lot size in force on a day, read from the data rather than a table.
@@ -365,10 +402,10 @@ class History:
         if expiry is not None:
             where += " AND expiry = ?"
             params.append(expiry)
-        oi = self._conn.execute(
+        oi = self._q(
             f"SELECT DISTINCT oi FROM option_bar WHERE {where} AND oi > 0", params
         ).fetchall()
-        volume = self._conn.execute(
+        volume = self._q(
             f"SELECT DISTINCT volume FROM option_bar WHERE {where} AND volume > 0", params
         ).fetchall()
         return [r[0] for r in oi], [r[0] for r in volume]
