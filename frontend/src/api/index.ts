@@ -9,6 +9,7 @@ export * from "./chart";
 export * from "./alerts";
 export * from "./backtest";
 export * from "./optbt";
+export * from "./sim";
 export * from "./rrg";
 export * from "./vol";
 export * from "./structure";

@@ -21,6 +21,8 @@ const DESC: Record<string, string> = {
     "What a rule would have done. Reads the bars the desks have stored, so a run can only cover history that actually exists.",
   "option-backtesting":
     "A NIFTY option strategy replayed minute by minute over years of real contracts — strikes as they were quoted, every charge, settled at expiry.",
+  "option-simulator":
+    "Any minute of the stored NIFTY option history, replayed: the chain as it stood, legs traded by hand, stops and targets filled as time moves on.",
   preopen:
     "Where every F&O stock and NIFTY were set to open, from NSE's 09:00 auction — recorded each morning, because NSE only shows the latest one.",
 };
@@ -107,6 +109,18 @@ export function Home({ onGo, cryptoReady }: Props) {
           <h2>Options backtesting</h2>
           <p>A NIFTY strategy replayed minute by minute, years of real contracts.</p>
           <span className="go">Open options backtesting</span>
+        </button>
+
+        <button
+          className="card"
+          data-accent="i2"
+          onClick={() => onGo("option-simulator")}
+          title={DESC["option-simulator"]}
+        >
+          <ReplayMark />
+          <h2>Simulator</h2>
+          <p>Trade any past minute of NIFTY options by hand, and step time forward.</p>
+          <span className="go">Open the simulator</span>
         </button>
 
         <button
@@ -286,6 +300,23 @@ function AuctionMark() {
 }
 
 /** A short straddle's tent over the minute line it is replayed on. */
+/** A price path stopped part-way, with the rest still to be played. */
+function ReplayMark() {
+  const path = [52, 46, 50, 40, 44, 34, 38, 30, 36, 28, 32, 40, 36, 46, 42, 50, 44, 38, 42, 34];
+  const step = 220 / (path.length - 1);
+  const at = 10;
+  const pts = path.map((v, i) => `${i === 0 ? "M" : "L"}${i * step} ${v + 20}`);
+  return (
+    <svg viewBox="0 0 220 104" className="mark" aria-hidden="true">
+      <line x1="0" y1="86" x2="220" y2="86" className="markaxis" />
+      <path d={pts.slice(0, at + 1).join(" ")} className="markline you" />
+      <path d={["M" + pts[at].slice(1), ...pts.slice(at + 1)].join(" ")} className="markline mkt thin" strokeDasharray="3 4" />
+      <line x1={at * step} y1="8" x2={at * step} y2="86" className="markaxis" />
+      <circle cx={at * step} cy={path[at] + 20} r="3" className="markdot" />
+    </svg>
+  );
+}
+
 function StraddleMark() {
   const minutes = [
     8, 14, 10, 18, 12, 22, 16, 28, 20, 34, 24, 40, 30, 46, 34, 50, 38, 54, 42, 58,

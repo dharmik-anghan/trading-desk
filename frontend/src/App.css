@@ -5170,3 +5170,641 @@ a.nitem:hover .nhead {
   border-color: var(--you);
 }
 
+/* ── Simulator ────────────────────────────────────────────────────────────
+   A past minute, traded by hand. The time bar is the page's spine: everything
+   below it is "as of" the moment in its middle. Chain left, what you hold right. */
+.sim {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px 20px 40px;
+  font-variant-numeric: tabular-nums;
+}
+.sim button,
+.sim select,
+.sim input {
+  font: 12px var(--n);
+}
+.sim-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.sim-top h1 {
+  margin: 0;
+  font: 600 20px var(--n);
+}
+.sim-top > select {
+  height: 30px;
+}
+.sim-files {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sim-files > button,
+.sim-saved > button,
+.sim-save button,
+.sim-play button {
+  height: 30px;
+  padding: 0 12px;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sim-files button:hover:not(:disabled),
+.sim-play button:hover:not(:disabled) {
+  border-color: var(--you);
+}
+.sim .sim-primary {
+  color: var(--you-fg);
+  background: var(--you);
+  border-color: var(--you);
+}
+.sim .sim-reset {
+  color: var(--dn);
+}
+.sim-name {
+  color: var(--dim);
+  font-size: 12px;
+}
+.sim-save {
+  display: flex;
+  gap: 6px;
+}
+.sim-save input {
+  width: 180px;
+  height: 30px;
+}
+.sim-saved {
+  position: relative;
+}
+.sim-saved ul {
+  position: absolute;
+  z-index: 20;
+  top: 34px;
+  left: 0;
+  min-width: 300px;
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  box-shadow: var(--shadow);
+}
+.sim-saved li {
+  display: flex;
+  align-items: center;
+}
+.sim-saved li.dim {
+  padding: 8px;
+  color: var(--dim);
+  font-size: 12px;
+}
+.sim-saved li button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  color: var(--fg);
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sim-saved li button span {
+  color: var(--dim);
+  font-size: 11px;
+}
+.sim-saved li button:hover {
+  background: var(--selbg);
+}
+.sim-saved li button.x {
+  flex: 0;
+  padding: 6px 10px;
+  color: var(--dim);
+}
+.sim-play {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.sim-play button.on {
+  color: var(--you-fg);
+  background: var(--you);
+  border-color: var(--you);
+}
+.sim-play select {
+  height: 30px;
+}
+
+.sim-time {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(240px, 2.4fr) repeat(6, minmax(0, 1fr));
+  margin-top: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.sim-time button {
+  height: 38px;
+  color: var(--fg);
+  font-size: 13px !important;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--grid);
+  cursor: pointer;
+}
+.sim-time button:last-child {
+  border-right: none;
+}
+.sim-time button:hover:not(:disabled) {
+  background: var(--selbg);
+}
+.sim-time button:disabled {
+  color: var(--dim);
+  cursor: default;
+}
+.sim-when {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: 600 13px var(--n);
+  border-right: 1px solid var(--grid);
+  background: var(--selbg);
+  cursor: pointer;
+}
+/* The picker sits invisibly over the label, which reads better than its own text. */
+.sim-when input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.sim-error {
+  margin: 10px 0 0;
+  color: var(--dn);
+  font-size: 13px;
+}
+.sim-empty {
+  margin: 18px 12px;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.sim-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+  margin-top: 12px;
+  transition: opacity 0.15s ease;
+}
+.sim-body.busy {
+  opacity: 0.85;
+}
+.sim-chain,
+.sim-payoff,
+.sim-pos {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.sim-chain {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: calc(100vh - 170px);
+  min-height: 520px;
+}
+.sim-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--dim);
+  border-bottom: 1px solid var(--grid);
+}
+.sim-strip b {
+  color: var(--fg);
+  font-weight: 600;
+}
+.sim-expiries {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--grid);
+}
+.sim-expiries > * {
+  flex: none;
+}
+.sim-expiries button,
+.sim-expiries select {
+  height: 28px;
+  padding: 0 10px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sim-expiries button span {
+  color: var(--dim);
+}
+.sim-expiries .on {
+  color: var(--you);
+  background: var(--selbg);
+  border-color: var(--you);
+}
+.sim-table {
+  flex: 1;
+  overflow: auto;
+}
+.sim-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.sim-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 7px 8px;
+  font-weight: 500;
+  color: var(--dim);
+  text-align: left;
+  background: var(--head);
+}
+.sim-table th.r,
+.sim-table td.r {
+  text-align: right;
+}
+.sim-table th.k,
+.sim-table td.k {
+  width: 64px;
+  text-align: center;
+}
+.sim-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--grid);
+  white-space: nowrap;
+}
+.sim-table td.k {
+  font-weight: 600;
+  background: var(--head);
+}
+.sim-table td.itm {
+  background: var(--itm);
+}
+.sim-table tr.atm td {
+  background: var(--atm);
+  box-shadow: inset 0 1px 0 var(--mkt), inset 0 -1px 0 var(--mkt);
+}
+.sim-table .stale {
+  color: var(--dim);
+  text-decoration: underline dotted;
+}
+.sim-table td.oi {
+  position: relative;
+  width: 26%;
+}
+.sim-oi {
+  position: relative;
+  display: block;
+  height: 16px;
+}
+.sim-oi i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 2px;
+}
+.sim-oi.ce i {
+  right: 0;
+  background: var(--fu);
+}
+.sim-oi.pe i {
+  left: 0;
+  background: var(--fd);
+}
+.sim-oi em {
+  position: relative;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--dim);
+}
+.sim-oi.ce em {
+  float: right;
+}
+.sim-trade {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+td.oi.ce .sim-trade {
+  left: 6px;
+}
+td.oi.pe .sim-trade {
+  right: 6px;
+}
+.sim-held {
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  background: var(--panel);
+}
+.sim-held.long {
+  color: var(--up);
+}
+.sim-held.short {
+  color: var(--sell);
+}
+/* B and S only for the row under the pointer - or the one being tabbed through. */
+.sim-bs {
+  display: none;
+  gap: 3px;
+}
+.sim-table tr:hover .sim-bs,
+.sim-table tr:focus-within .sim-bs {
+  display: flex;
+}
+.sim-bs button {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  font-size: 11px !important;
+  font-weight: 600;
+  background: var(--panel);
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.sim-bs .b {
+  color: var(--up);
+}
+.sim-bs .s {
+  color: var(--sell);
+}
+.sim-bs button:hover {
+  color: var(--panel);
+}
+.sim-bs .b:hover {
+  background: var(--up);
+}
+.sim-bs .s:hover {
+  background: var(--sell);
+}
+
+.sim-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.sim-payoff {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+}
+.sim-stats {
+  margin: 0;
+  border-right: 1px solid var(--grid);
+}
+.sim-stats div {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grid);
+}
+.sim-stats div:last-child {
+  border-bottom: none;
+}
+.sim-stats dt {
+  font-size: 11px;
+  color: var(--dim);
+}
+.sim-stats dd {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.sim .up {
+  color: var(--up);
+}
+.sim .dn {
+  color: var(--dn);
+}
+.sim .dim {
+  color: var(--dim);
+}
+.sim-chart {
+  min-width: 0;
+  padding: 8px 8px 4px;
+}
+.sim-pos header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grid);
+}
+.sim-pos h3 {
+  margin: 0;
+  font: 600 14px var(--n);
+}
+.sim-mult {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.sim-mult button {
+  width: 24px;
+  height: 24px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.sim-mult input {
+  width: 44px;
+  height: 24px;
+  text-align: center;
+}
+.sim-qty {
+  font-size: 12px;
+  color: var(--dim);
+}
+.sim-total {
+  margin-left: auto;
+  font-size: 13px;
+}
+.sim-legs {
+  overflow-x: auto;
+}
+.sim-legs table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.sim-legs th {
+  padding: 6px 8px;
+  font-weight: 500;
+  color: var(--dim);
+  text-align: left;
+  border-bottom: 1px solid var(--grid);
+}
+.sim-legs td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--grid);
+  white-space: nowrap;
+}
+.sim-legs .r {
+  text-align: right;
+}
+.sim-legs small {
+  display: block;
+  font-size: 10px;
+  color: var(--dim);
+}
+.sim-legs tr.closed td,
+.sim-legs tr.off td {
+  color: var(--dim);
+}
+.sim-legs tr.closed td.up,
+.sim-legs tr.closed td.dn {
+  opacity: 0.75;
+}
+.sim-side {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-weight: 600;
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.sim-side.buy {
+  color: var(--up);
+}
+.sim-side.sell {
+  color: var(--sell);
+}
+.sim-side:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.sim-lots {
+  width: 48px;
+}
+.sim-strike {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sim-strike span {
+  min-width: 46px;
+  text-align: center;
+}
+.sim-strike button,
+.sim-acts button {
+  height: 22px;
+  padding: 0 7px;
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.sim-strike button:hover,
+.sim-acts button:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--you);
+}
+.sim-kind {
+  padding: 1px 5px;
+  font-size: 11px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+.sim-kind.CE {
+  color: var(--up);
+}
+.sim-kind.PE {
+  color: var(--dn);
+}
+.sim-levels {
+  display: flex;
+  gap: 4px;
+}
+.sim-levels input {
+  width: 50px;
+}
+.sim-acts {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1100px) {
+  .sim-body {
+    grid-template-columns: 1fr;
+  }
+  .sim-chain {
+    height: 520px;
+  }
+  .sim-time {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .sim-when {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 38px;
+    border-top: 1px solid var(--grid);
+    border-bottom: 1px solid var(--grid);
+    border-right: none;
+  }
+  .sim-time button:nth-child(6) {
+    border-right: none;
+  }
+}
+@media (max-width: 640px) {
+  .sim-payoff {
+    grid-template-columns: 1fr;
+  }
+  .sim-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-right: none;
+    border-bottom: 1px solid var(--grid);
+  }
+  .sim-play {
+    margin-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sim-body {
+    transition: none;
+  }
+}

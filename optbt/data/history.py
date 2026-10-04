@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 import duckdb
@@ -35,6 +35,18 @@ KNOWN_LOT_SIZES: dict[str, frozenset[int]] = {
 #: whole lots of 65 - the rest were from when it was 75, which fitted 6%. 80%
 #: still separates the lot from the others by a wide margin.
 LOT_VOTE = 0.80
+
+
+@dataclass(frozen=True)
+class ChainQuote:
+    """One contract as of a moment: its last trade, and when that was."""
+
+    key: OptionKey
+    price: float
+    last_at: datetime
+    oi: int
+    #: Contracts traded in the session so far.
+    volume: int
 
 
 @dataclass(frozen=True)
@@ -261,6 +273,57 @@ class History:
             Quote(OptionKey(expiry, float(r[0]), Kind(r[1])), float(r[2]), int(r[3]), int(r[4]))
             for r in rows
         ]
+
+    # ----------------------------------------------------- as of a moment
+
+    #: How far back an "as of" price may come from. A contract that has not
+    #: traded in four calendar days - a long weekend - has no price worth showing.
+    ASOF_LOOKBACK = timedelta(days=4)
+
+    def chain_asof(self, expiry: date, ts: datetime) -> list[ChainQuote]:
+        """Every contract of one expiry as it stood at the close of the bar
+        named `ts`: its last trade at or before then, the open interest that
+        trade carried, and the session's volume so far.
+
+        Unlike `chain_at`, a strike that did not trade in that very minute is
+        still there, at its last price - with `last_at` saying how old it is.
+        """
+        day_start = datetime.combine(ts.date(), SESSION_OPEN)
+        rows = self._conn.execute(
+            "SELECT strike, kind, arg_max(close, ts), max(ts), arg_max(oi, ts), "
+            "coalesce(sum(volume) FILTER (WHERE ts >= ?), 0) "
+            "FROM option_bar WHERE underlying = ? AND expiry = ? AND kind <> 'FUT' "
+            "AND ts <= ? AND ts >= ? GROUP BY strike, kind ORDER BY strike, kind",
+            [day_start, self.underlying, expiry, ts, ts - self.ASOF_LOOKBACK],
+        ).fetchall()
+        return [
+            ChainQuote(
+                OptionKey(expiry, float(r[0]), Kind(r[1])),
+                float(r[2]),
+                r[3],
+                int(r[4]),
+                int(r[5]),
+            )
+            for r in rows
+        ]
+
+    def price_asof(self, key: OptionKey, ts: datetime) -> tuple[datetime, float] | None:
+        """One contract's last trade at or before the close of the bar named `ts`."""
+        row = self._conn.execute(
+            "SELECT ts, close FROM option_bar WHERE underlying = ? AND expiry = ? "
+            "AND strike = ? AND kind = ? AND ts <= ? AND ts >= ? ORDER BY ts DESC LIMIT 1",
+            [self.underlying, key.expiry, key.strike, str(key.kind), ts, ts - self.ASOF_LOOKBACK],
+        ).fetchone()
+        return (row[0], float(row[1])) if row else None
+
+    def future_asof(self, ts: datetime) -> tuple[date, float] | None:
+        """The nearest futures contract's last trade at or before `ts`, and its expiry."""
+        row = self._conn.execute(
+            "SELECT expiry, close FROM option_bar WHERE underlying = ? AND kind = 'FUT' "
+            "AND expiry >= ? AND ts <= ? AND ts >= ? ORDER BY expiry, ts DESC LIMIT 1",
+            [self.underlying, ts.date(), ts, ts - self.ASOF_LOOKBACK],
+        ).fetchone()
+        return (row[0], float(row[1])) if row else None
 
     def lot_size(self, day: date, expiry: date) -> int:
         """The lot size in force on a day, read from the data rather than a table.
