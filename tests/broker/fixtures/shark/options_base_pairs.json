@@ -1,0 +1,48 @@
+[
+    {
+        "baseCoin": "BTC",
+        "quoteCoin": "USDT",
+        "displayName": "BTC-USDT",
+        "iconUrl": "https://storage.googleapis.com/pi42-dev-static/contract-icons/btc.png",
+        "maxImFactorPercentage": 10,
+        "minImFactorPercentage": 5,
+        "mmFactorPercentage": 3,
+        "liquidationFeePercentage": 0.2,
+        "maxProportionOfTxnInOrderPricePercentage": 7,
+        "makerFeePercentage": 0.015,
+        "takerFeePercentage": 0.02,
+        "pricePrecision": 2,
+        "minMaxPriceFactors": {
+            "maxPriceFactor": 1.2,
+            "minPriceFactor": 0.8
+        },
+        "maxBuyMinSellMultipliers": {
+            "deltaMultiplier": 4,
+            "minSellPrice": 5,
+            "multiplierCoefficient": 0.016
+        }
+    },
+    {
+        "baseCoin": "ETH",
+        "quoteCoin": "USDT",
+        "displayName": "ETH-USDT",
+        "iconUrl": "https://storage.googleapis.com/pi42-dev-static/contract-icons/eth.png",
+        "maxImFactorPercentage": 10,
+        "minImFactorPercentage": 5,
+        "mmFactorPercentage": 5,
+        "liquidationFeePercentage": 0.2,
+        "maxProportionOfTxnInOrderPricePercentage": 7,
+        "makerFeePercentage": 0.015,
+        "takerFeePercentage": 0.02,
+        "pricePrecision": 2,
+        "minMaxPriceFactors": {
+            "maxPriceFactor": 1.2,
+            "minPriceFactor": 0.8
+        },
+        "maxBuyMinSellMultipliers": {
+            "deltaMultiplier": 4,
+            "minSellPrice": 0.1,
+            "multiplierCoefficient": 0.02
+        }
+    }
+]

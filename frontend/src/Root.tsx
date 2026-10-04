@@ -4,6 +4,7 @@ import { Home } from "./components/Home";
 import { Backtesting } from "./components/Backtesting";
 import { OptionBacktesting } from "./components/OptionBacktesting";
 import { Simulator } from "./components/Simulator";
+import { LiveBuilder } from "./components/LiveBuilder";
 import { PreOpen } from "./components/PreOpen";
 import { Rrg } from "./components/Rrg";
 import { getVenues } from "./api";
@@ -48,6 +49,9 @@ export default function Root() {
   }
   if (route === "option-simulator") {
     return <Simulator onHome={() => go("home")} />;
+  }
+  if (route === "live") {
+    return <LiveBuilder onHome={() => go("home")} />;
   }
   if (route === "preopen") {
     return <PreOpen onHome={() => go("home")} />;

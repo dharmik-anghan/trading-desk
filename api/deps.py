@@ -18,12 +18,23 @@ from fastapi import Depends, HTTPException, Request
 import paths
 from broker.base import Broker, OptionsBroker
 from broker.contracts import ContractCodec
-from broker.factory import broker_for, codec_for, options_broker
+from broker.factory import (
+    broker_for,
+    codec_for,
+    is_configured,
+    option_chains_for,
+    options_broker,
+)
+from broker.shark.options import SharkOptionsBroker
+from broker.shark.options_account import SharkOptionsAccount
 from feeds.fetch import Feeds
 from feeds.holidays import Holidays
 from marketdata import BarService, BarStore
 from marketdata.holder import BarStoreHolder
-from venues import AssetClass, VenueSpec, serving
+from paper.live import Limits, SharkExecutor
+from paper.markets import Executor, NseMarket, PaperMarket, SharkMarket
+from settings import load_settings
+from venues import SHARK_OPTIONS, AssetClass, VenueSpec, serving
 from venues import get as get_venue
 from venues.registry import UnknownVenueError
 
@@ -64,6 +75,69 @@ def get_perps_broker(venue: PerpsVenueDep) -> Broker:
     return broker_for(venue)
 
 
+def get_crypto_options() -> SharkOptionsBroker:
+    """The crypto options desk's adapter. Public data, so no credential to check.
+
+    The concrete adapter rather than a protocol: the desk reads the venue's fee
+    terms and order books, which no other options venue has a shape for yet.
+    """
+    adapter = option_chains_for(serving(AssetClass.CRYPTO_OPTIONS))
+    if not isinstance(adapter, SharkOptionsBroker):
+        raise HTTPException(status_code=500, detail="crypto options venue is not Shark")
+    return adapter
+
+
+_nse_market: NseMarket | None = None
+
+
+def get_paper_markets() -> dict[str, PaperMarket]:
+    """The live markets paper trades can be placed on, by venue id.
+
+    Shark's is public and always there. The NSE's needs Fyers, so it is left out
+    while Fyers is not configured rather than offered and then refused. Built
+    once: it remembers lot sizes and contracts as chains are read.
+    """
+    global _nse_market
+    out: dict[str, PaperMarket] = {SHARK_OPTIONS.id: SharkMarket(get_crypto_options())}
+    nse = serving(AssetClass.INDEX_OPTIONS)
+    if is_configured(nse):
+        broker = options_broker(nse)
+        if _nse_market is None:
+            _nse_market = NseMarket(broker, codec_for(nse), broker, holidays=_holidays.dates)
+        out[nse.id] = _nse_market
+    return out
+
+
+def get_shark_options_account() -> SharkOptionsAccount | None:
+    """The Shark options account, when its key is set. Reading it is harmless;
+    trading through it needs `get_executors` as well."""
+    settings = load_settings()
+    if not settings.has_shark:
+        return None
+    return SharkOptionsAccount(settings.shark_api_key, settings.shark_api_secret)
+
+
+def get_executors() -> dict[str, Executor]:
+    """What can send real orders, by venue. Empty unless live trading is on.
+
+    Only Shark's options for now; the NSE's comes when Fyers orders are wired.
+    """
+    settings = load_settings()
+    account = get_shark_options_account()
+    if not settings.shark_options_live or account is None:
+        return {}
+    return {SHARK_OPTIONS.id: SharkExecutor(account, SharkMarket(get_crypto_options()))}
+
+
+def get_live_limits() -> Limits:
+    settings = load_settings()
+    return Limits(
+        enabled=settings.shark_options_live,
+        max_notional=settings.shark_max_notional,
+        daily_loss=settings.shark_options_daily_loss,
+    )
+
+
 def get_codec(venue: OptionsVenueDep) -> ContractCodec:
     """How this request's venue spells its contracts. See `broker/contracts.py`."""
     return codec_for(venue)
@@ -95,6 +169,11 @@ def get_holidays() -> Holidays:
 BrokerDep = Annotated[OptionsBroker, Depends(get_broker)]
 CodecDep = Annotated[ContractCodec, Depends(get_codec)]
 PerpsBrokerDep = Annotated[Broker, Depends(get_perps_broker)]
+PaperMarketsDep = Annotated[dict[str, PaperMarket], Depends(get_paper_markets)]
+ExecutorsDep = Annotated[dict[str, Executor], Depends(get_executors)]
+LiveLimitsDep = Annotated[Limits, Depends(get_live_limits)]
+SharkAccountDep = Annotated[SharkOptionsAccount | None, Depends(get_shark_options_account)]
+CryptoOptionsDep = Annotated[SharkOptionsBroker, Depends(get_crypto_options)]
 FeedsDep = Annotated[Feeds, Depends(get_feeds)]
 HolidaysDep = Annotated[Holidays, Depends(get_holidays)]
 DbPathDep = Annotated[Path, Depends(get_db_path)]

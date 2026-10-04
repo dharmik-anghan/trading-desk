@@ -20,6 +20,11 @@ class AssetClass(StrEnum):
 
     INDEX_OPTIONS = "index_options"
     PERPETUALS = "perpetuals"
+    #: Options on a crypto underlying: strikes and expiries like index options,
+    #: but a market that never closes, quantities in fractions of a coin, and
+    #: prices in USDT with the account in INR. Its own class so the NSE desk's
+    #: panels, which assume a session and lot sizes, are not offered it.
+    CRYPTO_OPTIONS = "crypto_options"
 
 
 class Capability(StrEnum):

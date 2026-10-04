@@ -388,6 +388,96 @@ def _sim_sessions(conn: sqlite3.Connection) -> None:
     """)
 
 
+def _strategies(conn: sqlite3.Connection) -> None:
+    """Strategies saved from the builder, to backtest, paper trade or run again.
+
+    The spec is kept as JSON in `optbt.spec`'s shape rather than as columns: it
+    is versioned on its own, read whole, and never queried by field. The
+    underlying sits beside it because a strategy is built for one - NIFTY or BTC
+    - and the list is filtered by it.
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS strategy (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            underlying TEXT NOT NULL,
+            spec TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            saved_at TEXT NOT NULL
+        );
+    """)
+
+
+def _paper(conn: sqlite3.Connection) -> None:
+    """Paper trades on a live chain: sessions, and the legs traded in them.
+
+    Unlike a simulator session, which the page holds and replays, these are the
+    book of record: the server fills them against the live order book, and its
+    watcher closes them on a stop, a target or expiry whether or not a page is
+    open. So each leg is a row, updated in place as it is closed.
+
+    Quantities are in the coin (0.25 ETH), prices in the quote (USDT).
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS paper_session (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            venue TEXT NOT NULL,
+            underlying TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            -- Square everything off at this net P&L, in the quote currency.
+            rule_stop REAL,
+            rule_target REAL,
+            -- The last time that rule fired, to say so.
+            squared_at TEXT,
+            squared_reason TEXT,
+            squared_net REAL
+        );
+        CREATE TABLE IF NOT EXISTS paper_leg (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL REFERENCES paper_session(id) ON DELETE CASCADE,
+            symbol TEXT NOT NULL,
+            side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+            kind TEXT NOT NULL CHECK (kind IN ('CE', 'PE')),
+            strike REAL NOT NULL,
+            expiry TEXT NOT NULL,
+            -- When it settles, ISO with offset.
+            delivery TEXT NOT NULL,
+            qty REAL NOT NULL CHECK (qty > 0),
+            entry_at TEXT NOT NULL,
+            entry_price REAL NOT NULL,
+            entry_fee REAL NOT NULL,
+            -- The spot index when it filled, which the fee is a share of.
+            entry_index REAL,
+            stop REAL,
+            target REAL,
+            exit_at TEXT,
+            exit_price REAL,
+            exit_fee REAL,
+            exit_reason TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE INDEX IF NOT EXISTS paper_leg_session ON paper_leg(session_id);
+        CREATE INDEX IF NOT EXISTS paper_leg_open ON paper_leg(exit_at) WHERE exit_at IS NULL;
+    """)
+
+
+def _paper_live(conn: sqlite3.Connection) -> None:
+    """Sessions that trade for real, and the venue's order behind each fill.
+
+    A live session's legs are filled by real orders, and its stops and exits
+    send real orders too; keeping it a session of its own rather than a flag on
+    a leg means a paper leg and a real one can never sit in one total. The order
+    ids are how a fill is traced back to the venue's own record of it.
+    """
+    conn.executescript("""
+        ALTER TABLE paper_session ADD COLUMN mode TEXT NOT NULL DEFAULT 'paper'
+            CHECK (mode IN ('paper', 'live'));
+        ALTER TABLE paper_leg ADD COLUMN entry_order TEXT;
+        ALTER TABLE paper_leg ADD COLUMN exit_order TEXT;
+    """)
+
+
 #: Ordered, append-only. Never edit a step that has shipped.
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(version=1, reason="baseline: the schema init_schema creates", apply=_noop),
@@ -411,6 +501,12 @@ MIGRATIONS: tuple[Migration, ...] = (
               apply=_preopen_index),
     Migration(version=11, reason="simulator sessions saved to come back to",
               apply=_sim_sessions),
+    Migration(version=12, reason="strategies saved from the builder",
+              apply=_strategies),
+    Migration(version=13, reason="paper trades on a live chain, filled from its order book",
+              apply=_paper),
+    Migration(version=14, reason="live sessions, filled by real orders on the venue",
+              apply=_paper_live),
 )
 
 

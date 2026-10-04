@@ -16,6 +16,7 @@ import pytest
 from broker.base import Funds_, MarketData, OptionsData, PerpetualsData, Streaming, Trading
 from broker.fake import FakeBroker
 from broker.shark import SharkBroker
+from broker.shark.options import SharkOptionsBroker
 from venues import AssetClass, Capability, Session, VenueSpec, get, is_open, listed
 from venues.registry import DEFAULT_VENUE_ID, VENUES, UnknownVenueError
 
@@ -105,6 +106,9 @@ def _adapter_for(spec: VenueSpec) -> object | None:
         # Constructing it needs no network and no real key - it only signs when
         # it actually calls out - so the capability claim can be checked here.
         return SharkBroker(api_key="test-key", api_secret="test-secret")
+    if spec.id == "shark_options":
+        # Public data and no feed: constructing it touches nothing.
+        return SharkOptionsBroker()
     return None
 
 

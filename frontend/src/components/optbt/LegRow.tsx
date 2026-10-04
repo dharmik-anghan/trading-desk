@@ -9,6 +9,10 @@ interface Props {
   onRemove: (() => void) | null;
   /** A "≈ days out" strategy has one expiry; a leg cannot name the 2nd of it. */
   daysSeries: boolean;
+  /** A coin's options trade in fractions of it: each "lot" is one `step`. */
+  coin?: { name: string; step: number } | null;
+  /** What premiums are priced in. */
+  currency?: string;
 }
 
 /** ITM 10 … ATM … OTM 10, counted in listed strikes from the money. */
@@ -20,7 +24,16 @@ const offsetLabel = (o: number) => (o === 0 ? "ATM" : o > 0 ? `OTM ${o}` : `ITM 
  * One leg, read left to right like the order it stands for:
  * sell · CE · 1 lot · same expiry · ATM · stop 25% · no target.
  */
-export function LegRow({ index, leg, onChange, onCopy, onRemove, daysSeries }: Props) {
+export function LegRow({
+  index,
+  leg,
+  onChange,
+  onCopy,
+  onRemove,
+  daysSeries,
+  coin = null,
+  currency = "₹",
+}: Props) {
   const set = <K extends keyof LegDraft>(key: K, value: LegDraft[K]) =>
     onChange({ ...leg, [key]: value });
 
@@ -58,7 +71,10 @@ export function LegRow({ index, leg, onChange, onCopy, onRemove, daysSeries }: P
         ))}
       </div>
 
-      <label className="ob-lots" title="Lots, at the lot size in force on each day">
+      <label
+        className="ob-lots"
+        title={coin ? `Steps of ${coin.step} ${coin.name}` : "Lots, at the lot size in force on each day"}
+      >
         <input
           type="number"
           min={1}
@@ -67,7 +83,9 @@ export function LegRow({ index, leg, onChange, onCopy, onRemove, daysSeries }: P
           onChange={(e) => set("lots", Math.max(1, Number(e.target.value)))}
           aria-label="Lots"
         />
-        <span>{leg.lots === 1 ? "lot" : "lots"}</span>
+        <span>
+          {coin ? `${+(leg.lots * coin.step).toFixed(4)} ${coin.name}` : leg.lots === 1 ? "lot" : "lots"}
+        </span>
       </label>
 
       <select
@@ -104,7 +122,7 @@ export function LegRow({ index, leg, onChange, onCopy, onRemove, daysSeries }: P
           ))}
           <option value="delta">Delta…</option>
           <option value="pct">% from spot…</option>
-          <option value="premium">Premium near ₹…</option>
+          <option value="premium">Premium near {currency}…</option>
           <option value="straddle_width">x straddle width…</option>
           <option value="sp_pct">% of straddle premium…</option>
         </select>
@@ -137,7 +155,7 @@ export function LegRow({ index, leg, onChange, onCopy, onRemove, daysSeries }: P
             step={5}
             value={leg.premium}
             onChange={(e) => set("premium", Math.max(0, Number(e.target.value)))}
-            aria-label="Target premium in rupees"
+            aria-label={`Target premium in ${currency}`}
           />
         )}
         {leg.strikeMode === "straddle_width" && (

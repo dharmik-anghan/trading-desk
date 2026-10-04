@@ -5,7 +5,17 @@ import { PayoffChart } from "../PayoffChart";
 const tone = (v: number | null) => (v === null ? "" : v > 0 ? "up" : v < 0 ? "dn" : "");
 
 /** What the included legs make: now, at the nearest expiry, and the odds of it. */
-export function SimPayoff({ moment }: { moment: SimMoment }) {
+export function SimPayoff({
+  moment,
+  dp = 0,
+  marginNote,
+}: {
+  moment: SimMoment;
+  /** Decimals on money: none for rupees, two for a coin's USDT. */
+  dp?: number;
+  /** What the margin figure is, where it is not NSE's SPAN and exposure. */
+  marginNote?: string;
+}) {
   const p = moment.payoff;
   const hasCurve = p.expiry_curve.length > 1;
   const margin = p.span + p.exposure;
@@ -23,9 +33,11 @@ export function SimPayoff({ moment }: { moment: SimMoment }) {
     <section className="sim-payoff" aria-label="Payoff">
       <dl className="sim-stats">
         <div>
-          <dt title={`Gross ${signed(p.pnl)} · charges and slippage ${signed(-p.charges)}`}>Net P&amp;L</dt>
+          <dt title={`Gross ${signed(p.pnl, dp)} · charges and slippage ${signed(-p.charges, dp)}`}>
+            Net P&amp;L
+          </dt>
           <dd className={tone(p.net)}>
-            {signed(p.net)}
+            {signed(p.net, dp)}
             {ofMargin(p.net)}
           </dd>
         </div>
@@ -34,18 +46,21 @@ export function SimPayoff({ moment }: { moment: SimMoment }) {
             <dt title="Charges on every fill and slippage, an open leg's exit at its last price included">
               Charges
             </dt>
-            <dd className="dn">{signed(-p.charges)}</dd>
+            <dd className="dn">{signed(-p.charges, dp)}</dd>
           </div>
         )}
         {p.realised !== 0 && (
           <div>
             <dt>Booked</dt>
-            <dd className={tone(p.realised)}>{signed(p.realised)}</dd>
+            <dd className={tone(p.realised)}>{signed(p.realised, dp)}</dd>
           </div>
         )}
         <div>
           <dt
-            title={`What NSE's rules today would block for the open legs: SPAN ${num(p.span, 0)} + exposure ${num(p.exposure, 0)}`}
+            title={
+              marginNote ??
+              `What NSE's rules today would block for the open legs: SPAN ${num(p.span, 0)} + exposure ${num(p.exposure, 0)}`
+            }
           >
             Est. margin
           </dt>
@@ -54,14 +69,14 @@ export function SimPayoff({ moment }: { moment: SimMoment }) {
         <div>
           <dt>Max profit</dt>
           <dd className={p.profit_unlimited ? "up" : tone(p.max_profit)}>
-            {!hasCurve ? "—" : p.profit_unlimited ? "Unlimited" : signed(p.max_profit ?? 0)}
+            {!hasCurve ? "—" : p.profit_unlimited ? "Unlimited" : signed(p.max_profit ?? 0, dp)}
             {hasCurve && !p.profit_unlimited && ofMargin(p.max_profit ?? 0)}
           </dd>
         </div>
         <div>
           <dt>Max loss</dt>
           <dd className={p.loss_unlimited ? "dn" : tone(p.max_loss)}>
-            {!hasCurve ? "—" : p.loss_unlimited ? "Unlimited" : signed(p.max_loss ?? 0)}
+            {!hasCurve ? "—" : p.loss_unlimited ? "Unlimited" : signed(p.max_loss ?? 0, dp)}
           </dd>
         </div>
         <div>

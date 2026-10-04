@@ -4,10 +4,12 @@ import { NTH } from "./legs";
 interface Props {
   value: OptbtExpiryChoice;
   onChange: (value: OptbtExpiryChoice) => void;
+  /** Offer "daily": a venue that lists expiries between its weeklies. */
+  daily?: boolean;
 }
 
 /** Weekly · 1st · at least 1 day left - the expiry every leg trades unless it names its own. */
-export function ExpiryPicker({ value, onChange }: Props) {
+export function ExpiryPicker({ value, onChange, daily = false }: Props) {
   const set = <K extends keyof OptbtExpiryChoice>(key: K, v: OptbtExpiryChoice[K]) =>
     onChange({ ...value, [key]: v });
   const days = value.series === "days";
@@ -21,6 +23,7 @@ export function ExpiryPicker({ value, onChange }: Props) {
           onChange={(e) => set("series", e.target.value as OptbtExpiryChoice["series"])}
           aria-label="Expiry series"
         >
+          {(daily || value.series === "daily") && <option value="daily">Daily</option>}
           <option value="weekly">Weekly</option>
           <option value="monthly">Monthly</option>
           <option value="days">≈ days out</option>

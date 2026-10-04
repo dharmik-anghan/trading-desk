@@ -20,9 +20,11 @@ const DESC: Record<string, string> = {
   backtesting:
     "What a rule would have done. Reads the bars the desks have stored, so a run can only cover history that actually exists.",
   "option-backtesting":
-    "A NIFTY option strategy replayed minute by minute over years of real contracts — strikes as they were quoted, every charge, settled at expiry.",
+    "An option strategy, built leg by leg and saved, then replayed minute by minute over years of real NIFTY contracts.",
   "option-simulator":
     "Any minute of the stored NIFTY option history, replayed: the chain as it stood, legs traded by hand, stops and targets filled as time moves on.",
+  live:
+    "A template or a saved strategy placed on the live chain - NSE indices through Fyers, BTC and ETH on Shark - seen as a payoff, then paper traded. Stops and targets are watched by the server.",
   preopen:
     "Where every F&O stock and NIFTY were set to open, from NSE's 09:00 auction — recorded each morning, because NSE only shows the latest one.",
 };
@@ -106,9 +108,9 @@ export function Home({ onGo, cryptoReady }: Props) {
           title={DESC["option-backtesting"]}
         >
           <StraddleMark />
-          <h2>Options backtesting</h2>
-          <p>A NIFTY strategy replayed minute by minute, years of real contracts.</p>
-          <span className="go">Open options backtesting</span>
+          <h2>Strategy builder</h2>
+          <p>Build and save an option strategy, and replay it over years of NIFTY contracts.</p>
+          <span className="go">Open the builder</span>
         </button>
 
         <button
@@ -121,6 +123,18 @@ export function Home({ onGo, cryptoReady }: Props) {
           <h2>Simulator</h2>
           <p>Trade any past minute of NIFTY options by hand, and step time forward.</p>
           <span className="go">Open the simulator</span>
+        </button>
+
+        <button
+          className="card"
+          data-accent="you"
+          onClick={() => onGo("live")}
+          title={DESC.live}
+        >
+          <LiveMark />
+          <h2>Live strategy builder</h2>
+          <p>A strategy on the live chain, NSE or crypto, paper traded at the market.</p>
+          <span className="go">Open the live builder</span>
         </button>
 
         <button
@@ -313,6 +327,19 @@ function ReplayMark() {
       <path d={["M" + pts[at].slice(1), ...pts.slice(at + 1)].join(" ")} className="markline mkt thin" strokeDasharray="3 4" />
       <line x1={at * step} y1="8" x2={at * step} y2="86" className="markaxis" />
       <circle cx={at * step} cy={path[at] + 20} r="3" className="markdot" />
+    </svg>
+  );
+}
+
+/** A condor's payoff, and where the market stands on it now. */
+function LiveMark() {
+  return (
+    <svg viewBox="0 0 220 104" className="mark" aria-hidden="true">
+      <line x1="0" y1="70" x2="220" y2="70" className="markaxis" />
+      <path d="M4 96 L56 96 L84 30 L136 30 L164 96 L216 96 L216 70 L4 70 Z" className="markfill up" />
+      <path d="M4 96 L56 96 L84 30 L136 30 L164 96 L216 96" className="markline you" />
+      <line x1="118" y1="8" x2="118" y2="100" className="markaxis" strokeDasharray="3 4" />
+      <circle cx="118" cy="30" r="4" className="markdot" />
     </svg>
   );
 }

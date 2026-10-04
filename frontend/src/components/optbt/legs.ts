@@ -65,80 +65,39 @@ export function copyLeg(l: LegDraft): LegDraft {
 
 const QUARTER = { kind: "pct" as const, value: 25 };
 
-/** One-click starting points. Each fills in the legs, which stay editable. */
-export interface Preset {
-  name: string;
-  say: string;
-  legs: () => LegDraft[];
-  /** Settings a preset brings with it beyond its legs. */
-  hold?: "intraday" | "expiry";
-  expiry?: OptbtExpiryChoice;
-  /** Enter only at this many calendar days to expiry, inclusive. */
-  dte?: [number, number];
-  targetCredit?: number;
-  stopCredit?: number;
-  adjust?: boolean;
-  equalWings?: boolean;
-  exitDte?: number;
+/** What a new strategy starts as: the short straddle, 25% stop on each leg. */
+export function defaultLegs(): LegDraft[] {
+  return [leg("sell", "CE", 0, QUARTER), leg("sell", "PE", 0, QUARTER)];
 }
 
-export const PRESETS: Preset[] = [
-  {
-    name: "Short straddle",
-    say: "sell ATM CE + PE, 25% stop each",
-    legs: () => [leg("sell", "CE", 0, QUARTER), leg("sell", "PE", 0, QUARTER)],
-  },
-  {
-    name: "Short strangle",
-    say: "sell OTM 2 CE + PE, 25% stop each",
-    legs: () => [leg("sell", "CE", 2, QUARTER), leg("sell", "PE", 2, QUARTER)],
-  },
-  {
-    name: "Iron condor",
-    say: "sell OTM 4, buy OTM 8, both sides",
-    legs: () => [leg("sell", "CE", 4), leg("buy", "CE", 8), leg("sell", "PE", 4), leg("buy", "PE", 8)],
-  },
-  {
-    name: "45 DTE condor",
-    say: "Monthly, entered at about 41 days to expiry (40-42): sell 0.30 delta, buy 0.17 delta, wings made equal. Positional; out at 50% of the credit, a loss equal to it, or 15 days to expiry. Moves the untested spread in at a wing.",
-    hold: "expiry",
-    expiry: { series: "days", nth: 1, min_left: 0, days: 45 },
-    dte: [40, 42],
-    targetCredit: 50,
-    stopCredit: 100,
-    adjust: true,
-    equalWings: true,
-    exitDte: 15,
-    legs: () =>
-      (
-        [
-          ["sell", "CE", 0.3],
-          ["buy", "CE", 0.17],
-          ["sell", "PE", 0.3],
-          ["buy", "PE", 0.17],
-        ] as const
-      ).map(([side, kind, delta]) => ({
-        ...leg(side, kind),
-        strikeMode: "delta" as const,
-        delta,
-      })),
-  },
-  {
-    name: "Iron fly",
-    say: "sell ATM, buy OTM 4, both sides",
-    legs: () => [leg("sell", "CE", 0), leg("buy", "CE", 4), leg("sell", "PE", 0), leg("buy", "PE", 4)],
-  },
-  {
-    name: "Bull put spread",
-    say: "sell OTM 1 PE, buy OTM 5 PE",
-    legs: () => [leg("sell", "PE", 1), leg("buy", "PE", 5)],
-  },
-  {
-    name: "Bear call spread",
-    say: "sell OTM 1 CE, buy OTM 5 CE",
-    legs: () => [leg("sell", "CE", 1), leg("buy", "CE", 5)],
-  },
-];
+/** A leg as a spec holds it, back into the form - `toRequest` undone. */
+export function fromRequest(l: OptbtLegIn): LegDraft {
+  const level = (lv: OptbtLegIn["stop"], fallback: number) =>
+    lv === null
+      ? { kind: "none" as const, value: fallback }
+      : {
+          kind: lv.kind,
+          value: lv.kind === "pct" ? Math.round(lv.value * 1000) / 10 : lv.value,
+        };
+  const stop = level(l.stop, 25);
+  const target = level(l.target, 50);
+  return {
+    ...leg(l.side, l.kind),
+    lots: l.lots,
+    expiryNth: l.expiry ? l.expiry.nth : 0,
+    strikeMode: l.strike.mode,
+    offset: l.strike.offset,
+    premium: l.strike.premium,
+    pct: l.strike.pct,
+    delta: l.strike.delta,
+    widthMult: l.strike.width_mult,
+    spPct: l.strike.sp_pct,
+    stopKind: stop.kind,
+    stopValue: stop.value,
+    targetKind: target.kind,
+    targetValue: target.value,
+  };
+}
 
 export function toRequest(l: LegDraft, expiry: OptbtExpiryChoice): OptbtLegIn {
   const level = (kind: "none" | "pct" | "points", value: number) =>

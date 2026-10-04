@@ -167,3 +167,11 @@ def test_an_api_request_in_the_first_format_still_runs_as_it_meant() -> None:
         ExpiryChoice("days", days=45),
         ExpiryChoice("weekly", nth=2),
     ]
+
+
+def test_daily_is_its_own_series() -> None:
+    from optbt.strategies.legs import ExpiryChoice
+
+    raw = to_dict(CONFIGS["defaults"])
+    raw["expiry"] = {"series": "daily", "nth": 2, "min_left": 0, "days": 45}
+    assert from_dict(raw).expiry == ExpiryChoice("daily", 2, 0, 45)

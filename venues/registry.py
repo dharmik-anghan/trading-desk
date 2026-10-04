@@ -60,8 +60,30 @@ SHARK = VenueSpec(
     ),
 )
 
+SHARK_OPTIONS = VenueSpec(
+    id="shark_options",
+    name="Crypto options",
+    asset_class=AssetClass.CRYPTO_OPTIONS,
+    # Premiums and strikes in USDT, settled to an INR account - the same split as
+    # the perpetuals, on a separate service.
+    quote_currency="USDT",
+    margin_currency="INR",
+    session=Session.ALWAYS,
+    capabilities=frozenset(
+        {
+            Capability.QUOTES,
+            # The underlying's candles, from its perpetual. Option contracts have
+            # none: the venue serves no option history at all.
+            Capability.HISTORY,
+            Capability.OPTION_CHAIN,
+            # No TRADING or FUNDS yet: orders and the options wallet need a key
+            # and an options account, and come with live execution.
+        }
+    ),
+)
+
 #: Insertion order is the order the switcher shows them in.
-VENUES: dict[str, VenueSpec] = {FYERS.id: FYERS, SHARK.id: SHARK}
+VENUES: dict[str, VenueSpec] = {FYERS.id: FYERS, SHARK.id: SHARK, SHARK_OPTIONS.id: SHARK_OPTIONS}
 
 #: The venue used when a request does not name one. Every endpoint that existed
 #: before venues did keeps working unchanged because of this.

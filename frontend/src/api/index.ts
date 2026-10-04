@@ -14,3 +14,5 @@ export * from "./rrg";
 export * from "./vol";
 export * from "./structure";
 export * from "./preopen";
+export * from "./strategies";
+export * from "./live";

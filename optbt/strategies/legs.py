@@ -44,10 +44,13 @@ class ExpiryChoice:
     day - take the next one then". Monthly 2nd is next month.
     """
 
-    #: "weekly": every listed expiry. "monthly": the month-end ones. "days": the
-    #: monthly nearest `days` calendar days out - "45 DTE" - since that is where a
-    #: trade that long is placed and where the far strikes have a market.
-    series: Literal["weekly", "monthly", "days"] = "weekly"
+    #: "daily": every listed expiry. "weekly": the week's own expiries - on the
+    #: NSE that is every listed one, so the two mean the same there; a crypto
+    #: venue lists dailies between its Friday weeklies, and "weekly" skips them.
+    #: "monthly": the month-end ones. "days": the monthly nearest `days`
+    #: calendar days out - "45 DTE" - since that is where a trade that long is
+    #: placed and where the far strikes have a market.
+    series: Literal["daily", "weekly", "monthly", "days"] = "weekly"
     #: 1 is the nearest expiry that qualifies, 2 the one after. Not used by "days".
     nth: int = 1
     #: Expiries with fewer trading sessions than this left are passed over: 1
@@ -334,7 +337,11 @@ def pick_expiry(view: View, choice: ExpiryChoice, *, overnight: bool = False) ->
         if abs((best - view.day).days - days) > DAYS_SLACK:
             return None
         return best
-    found = view.expiries() if choice.series == "weekly" else view.monthly_expiries()
+    found = {
+        "daily": view.expiries,
+        "weekly": view.weekly_expiries,
+        "monthly": view.monthly_expiries,
+    }[choice.series]()
     # Nearest first, and asked about only until the nth has been found: the
     # sessions to an expiry is a question to the calendar.
     seen = 0

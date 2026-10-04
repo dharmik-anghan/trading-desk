@@ -33,7 +33,9 @@ from optbt.strategies.legs import (
 #: position goes flat) on the strategy; `width_mult` and `sp_pct` on a leg's
 #: strike. Missing on an older spec, both read as off.
 #: 4: `entry_signal` and `exit_signal`, indicator conditions. Missing, none.
-VERSION = 4
+#: 5: "daily" as an expiry series - every listed expiry, where "weekly" is the
+#: week's own. Identical on the NSE; they differ on a venue with dailies.
+VERSION = 5
 
 
 def _level_out(level: Level | None) -> dict[str, Any] | None:

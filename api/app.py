@@ -30,7 +30,14 @@ from starlette.types import Scope
 
 import paths
 from api.alert_inputs import gather
-from api.deps import get_broker, get_db_path, get_feeds, get_holidays
+from api.deps import (
+    get_broker,
+    get_db_path,
+    get_executors,
+    get_feeds,
+    get_holidays,
+    get_paper_markets,
+)
 from api.errors import broker_error_handler
 from api.routers import (
     alerts,
@@ -38,7 +45,9 @@ from api.routers import (
     bars,
     baskets,
     chart,
+    crypto_options,
     feeds,
+    live,
     market,
     optbt,
     perps,
@@ -46,6 +55,7 @@ from api.routers import (
     preopen,
     rrg,
     simulator,
+    strategies,
     structure,
     system,
     volatility,
@@ -56,6 +66,7 @@ from broker.errors import BrokerError
 from broker.factory import (
     account_stream_for,
     broker_for,
+    chain_feed_for,
     codec_for,
     expired_source_for,
     invalidate_account,
@@ -67,6 +78,7 @@ from broker.fyers.account_stream import AccountEvent
 from jobs.alert_watcher import Watcher
 from jobs.daily_bars import DailyBarUpdater
 from jobs.option_backfill import OptionBackfiller
+from jobs.paper_watcher import PaperWatcher
 from jobs.preopen_recorder import PreOpenRecorder
 from jobs.vol_recorder import VolRecorder
 from marketdata import BarService, nse_preopen
@@ -230,6 +242,18 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     application.state.preopen_recorder = preopen
     preopen_task = asyncio.create_task(preopen.run_forever(), name="preopen-recorder")
 
+    # Paper trades on the live chains: stops, targets and expiry, kept by
+    # the server so they hold with no page open.
+    # Overrides included, as for the options broker above, so a test's fake
+    # market is the one the watcher reads.
+    paper = PaperWatcher(
+        db_path,
+        lambda: application.dependency_overrides.get(get_paper_markets, get_paper_markets)(),
+        lambda: application.dependency_overrides.get(get_executors, get_executors)(),
+    )
+    application.state.paper_watcher = paper
+    paper_task = asyncio.create_task(paper.run_forever(), name="paper-watcher")
+
     # The daily bars the rotation graph and the volatility ranks read. Only the
     # backfill script wrote them, and it needs the desk stopped, so they sat at
     # whatever day it was last run. The desk holds the store, so it keeps them.
@@ -279,6 +303,22 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             log.warning("%s tick stream could not connect", spec.id, exc_info=True)
             await stream.stop()
 
+    # Option chains that exist only on a venue's socket. Public, so no credential
+    # gates it; a feed that will not connect leaves the chain on its stale
+    # catalogue prices rather than stopping the desk.
+    chain_feeds = []
+    for spec in listed():
+        chain_feed = chain_feed_for(spec)
+        if chain_feed is None:
+            continue
+        try:
+            await chain_feed.start()
+            chain_feeds.append(chain_feed)
+            log.info("%s chain feed connected", spec.id)
+        except Exception:  # noqa: BLE001 - a desk that will not start is worse
+            log.warning("%s chain feed could not connect", spec.id, exc_info=True)
+            await chain_feed.stop()
+
     # The account, pushed: an order, a fill or a position change says "read it
     # again", so the portfolio is fetched when it changed rather than every few
     # seconds in case it did. The cached reads are dropped first, so that read
@@ -310,6 +350,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         task.cancel()
         vol_task.cancel()
         preopen_task.cancel()
+        paper_task.cancel()
         daily_task.cancel()
         with suppress(asyncio.CancelledError):
             await task
@@ -317,6 +358,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             await vol_task
         with suppress(asyncio.CancelledError):
             await preopen_task
+        with suppress(asyncio.CancelledError):
+            await paper_task
         with suppress(asyncio.CancelledError):
             await daily_task
         if backfill_task is not None:
@@ -328,6 +371,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         application.state.daily_updater = None
         for stream in streams.values():
             await stream.stop()
+        for chain_feed in chain_feeds:
+            await chain_feed.stop()
         if account_stream is not None:
             await account_stream.stop()
         bars.close()
@@ -388,12 +433,15 @@ for _router in (
     backtest.router,
     optbt.router,
     simulator.router,
+    live.router,
+    strategies.router,
     preopen.router,
     bars.router,
     chart.router,
     portfolio.router,
     market.router,
     perps.router,
+    crypto_options.router,
     rrg.router,
     feeds.router,
     baskets.router,

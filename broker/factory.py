@@ -18,7 +18,7 @@ from typing import cast
 from fyers_apiv3 import fyersModel
 
 import paths
-from broker.base import AsyncStreaming, Broker, OptionsBroker, OptionsData
+from broker.base import AsyncStreaming, Broker, MarketData, OptionsBroker, OptionsData, Trading
 from broker.cache import CachedBroker
 from broker.contracts import ContractCodec
 from broker.errors import AuthFailed
@@ -28,6 +28,9 @@ from broker.fyers.account_stream import FyersAccountStream
 from broker.fyers.stream import FyersStream
 from broker.fyers.token_store import get_access_token
 from broker.shark import SharkBroker
+from broker.shark.options import SharkOptionsBroker
+from broker.shark.options_feed import OptionsFeed
+from broker.shark.options_parse import SYMBOLS as SHARK_OPTION_SYMBOLS
 from broker.shark.stream import SharkStream
 from optbt.data.fyers import FyersExpired
 from optbt.data.source import ExpiredSource
@@ -68,9 +71,29 @@ def _build_shark() -> Broker:
     return SharkBroker(api_key=settings.shark_api_key, api_secret=settings.shark_api_secret)
 
 
+#: Shark's options socket, one per process: every adapter built for the venue
+#: reads the same cache, and the app's lifespan starts and stops it.
+SHARK_OPTIONS_FEED = OptionsFeed()
+
+
+_shark_options: SharkOptionsBroker | None = None
+
+
+def _build_shark_options() -> MarketData:
+    """One adapter for the process. Public data, so no key that could rotate,
+    and its catalogue and fee caches are worth keeping: the paper watcher reads
+    them every second while anything is open."""
+    global _shark_options
+    if _shark_options is None:
+        _shark_options = SharkOptionsBroker(SHARK_OPTIONS_FEED)
+    return _shark_options
+
+
 @dataclass(frozen=True)
 class Factory:
-    build: Callable[[], Broker]
+    #: A venue's adapter. Typed as the one capability every venue has; what else
+    #: it can do is asked of it by protocol, as `broker_for` does for trading.
+    build: Callable[[], MarketData]
     #: Serve repeated reads from a short-lived cache - for a venue whose rate
     #: limit four polling panels would breach. See `broker/cache.py`.
     cached: bool = False
@@ -87,6 +110,9 @@ class Factory:
     #: Settled contracts' history, for a venue that serves it - what keeps the
     #: options backtest's store current.
     expired: Callable[[], ExpiredSource] | None = None
+    #: A live feed the venue's chains are read from, started with the app - for a
+    #: venue whose prices exist only on its socket.
+    chain_feed: OptionsFeed | None = None
 
 
 #: How to build an adapter for each venue in the catalogue. A venue in the
@@ -103,6 +129,9 @@ FACTORIES: dict[str, Factory] = {
         expired=_build_fyers_expired,
     ),
     "shark": Factory(_build_shark, configured=lambda s: s.has_shark, stream=SharkStream),
+    "shark_options": Factory(
+        _build_shark_options, codec=SHARK_OPTION_SYMBOLS, chain_feed=SHARK_OPTIONS_FEED
+    ),
 }
 
 # One cache per venue for the whole process, so it is shared by every request
@@ -131,8 +160,10 @@ def broker_for(venue: VenueSpec | None = None) -> Broker:
     spec = venue or get_venue()
     factory = _factory(spec)
     adapter = factory.build()
+    if not isinstance(adapter, Trading):
+        raise NotImplementedError(f"venue {spec.id!r} has no account to trade in")
     if not factory.cached:
-        return adapter
+        return cast(Broker, adapter)
     inner = cast(OptionsBroker, adapter)
     cache = _caches.get(spec.id)
     if cache is None:
@@ -140,6 +171,19 @@ def broker_for(venue: VenueSpec | None = None) -> Broker:
     else:
         cache.rebind(inner)
     return cache
+
+
+def market_data_for(venue: VenueSpec) -> MarketData:
+    """A venue's adapter for reading prices - every venue has one, trading or not."""
+    return _factory(venue).build()
+
+
+def option_chains_for(venue: VenueSpec) -> OptionsData:
+    """A venue's adapter for reading option chains, whether or not it trades."""
+    adapter = _factory(venue).build()
+    if not isinstance(adapter, OptionsData):
+        raise NotImplementedError(f"venue {venue.id!r} does not list option chains")
+    return adapter
 
 
 def options_broker(venue: VenueSpec | None = None) -> OptionsBroker:
@@ -181,6 +225,11 @@ def invalidate_account(venue: VenueSpec) -> None:
     cache = _caches.get(venue.id)
     if cache is not None:
         cache.invalidate_account()
+
+
+def chain_feed_for(venue: VenueSpec) -> OptionsFeed | None:
+    """The live feed the venue's chains are read from, or None if it needs none."""
+    return _factory(venue).chain_feed
 
 
 def account_stream_for(venue: VenueSpec) -> FyersAccountStream | None:

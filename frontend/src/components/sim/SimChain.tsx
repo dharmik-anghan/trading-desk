@@ -195,6 +195,11 @@ function Price({ side, at }: { side: SimSide | null; at: string }) {
       title={old ? `Last traded ${new Date(side.last_at).toLocaleString("en-IN")}` : undefined}
     >
       {num(side.ltp)}
+      {side.bid !== undefined && (
+        <small className="sim-ba" title="Best bid / best ask">
+          {side.bid != null ? num(side.bid) : "—"} / {side.ask != null ? num(side.ask) : "—"}
+        </small>
+      )}
     </span>
   );
 }

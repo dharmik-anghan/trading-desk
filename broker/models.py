@@ -57,6 +57,10 @@ class OptionChainRow(BaseModel):
     oi_change: int = 0
     oi_change_pct: float = 0.0
     greeks: Greeks | None = None
+    # The venue's fair value, where it publishes one. Shark does, and on a thin
+    # book it is a better price for a position than the last trade, which can be
+    # hours old. None on venues that do not (Fyers).
+    mark: float | None = None
 
 
 class Expiry(BaseModel):

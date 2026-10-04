@@ -7,6 +7,7 @@ export type Route =
   | "backtesting"
   | "option-backtesting"
   | "option-simulator"
+  | "live"
   | "preopen"
   | "rotation";
 
@@ -18,6 +19,7 @@ const PATHS: Record<Route, string> = {
   backtesting: "/backtesting",
   "option-backtesting": "/options/backtesting",
   "option-simulator": "/options/simulator",
+  live: "/live",
   preopen: "/preopen",
   rotation: "/rotation",
 };
@@ -40,8 +42,9 @@ const TITLE: Record<Route, string> = {
   options: "Option Desk",
   crypto: "Crypto Desk",
   backtesting: "Backtesting",
-  "option-backtesting": "Options backtesting",
+  "option-backtesting": "Strategy builder",
   "option-simulator": "Simulator",
+  live: "Live builder",
   preopen: "Pre-open",
   rotation: "Rotation",
 };

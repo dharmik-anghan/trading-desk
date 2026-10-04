@@ -161,7 +161,7 @@ class ExpiryIn(BaseModel):
 
     model_config = STRICT
 
-    series: Literal["weekly", "monthly", "days"] = "weekly"
+    series: Literal["daily", "weekly", "monthly", "days"] = "weekly"
     nth: int = Field(default=1, ge=1, le=3)
     #: Trading sessions an expiry must have left to be taken; 1 skips it on its own day.
     min_left: int = Field(default=0, ge=0, le=10)
@@ -279,14 +279,12 @@ class ExitSignalIn(BaseModel):
     conditions: list[ConditionIn] = Field(default_factory=list, max_length=6)
 
 
-class RunRequest(BaseModel):
-    """A strategy as legs, and everything that decides what running it means."""
+class StrategyIn(BaseModel):
+    """A strategy as legs, and everything that decides what running it means -
+    but not where or over what window. What a saved strategy holds."""
 
     model_config = STRICT
 
-    underlying: str = "NIFTY"
-    start: date
-    end: date
     legs: list[LegIn] = Field(min_length=1, max_length=8)
     expiry: ExpiryIn = Field(default_factory=ExpiryIn)
     entry: time = time(9, 20)
@@ -316,6 +314,14 @@ class RunRequest(BaseModel):
     def config(self) -> LegsConfig:
         """The strategy part of the request. Its JSON is the spec's shape - see optbt.spec."""
         return spec_from_dict(self.model_dump(mode="json"))
+
+
+class RunRequest(StrategyIn):
+    """A strategy, and the underlying and window to run it over."""
+
+    underlying: str = "NIFTY"
+    start: date
+    end: date
 
 
 class LegOut(BaseModel):

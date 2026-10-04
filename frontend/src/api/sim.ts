@@ -38,6 +38,9 @@ export interface SimSide {
   volume: number;
   iv: number | null;
   delta: number | null;
+  /** The book's top, on a live chain. Absent on a replayed one, which has only trades. */
+  bid?: number | null;
+  ask?: number | null;
 }
 
 export interface SimRow {

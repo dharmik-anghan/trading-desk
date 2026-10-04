@@ -150,6 +150,11 @@ class View:
         """Expiries not yet passed, nearest first."""
         return [e for e in self._history.expiries() if e >= self.day]
 
+    def weekly_expiries(self) -> list[date]:
+        """The week's expiries not yet passed, nearest first. On the NSE every
+        listed expiry is one: there are no dailies between them."""
+        return self.expiries()
+
     def monthly_expiries(self) -> list[date]:
         """Monthly expiries not yet passed, nearest first."""
         return [e for e in self._history.monthly_expiries() if e >= self.day]

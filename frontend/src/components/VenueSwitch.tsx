@@ -28,7 +28,10 @@ function deskTitle(venue: Venue | undefined): string {
  * button's focus ring, and the name of where it goes in its tooltip. With one
  * venue it renders as plain text, because then it goes nowhere.
  */
-export function VenueSwitch({ venues, selected, onSelect }: Props) {
+export function VenueSwitch({ venues: all, selected, onSelect }: Props) {
+  // Only venues with a desk to switch to. Crypto options are served to the
+  // strategy builder, not as a desk of their own.
+  const venues = all.filter((v) => v.asset_class in TITLE);
   const current = venues.find((v) => v.id === selected);
   const label = deskTitle(current);
 

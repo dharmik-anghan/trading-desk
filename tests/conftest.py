@@ -47,11 +47,31 @@ def _no_live_venues(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
         return build
 
+    import broker.shark.options_account as options_account
+
+    def no_account(*args: object, **kwargs: object) -> object:
+        raise VenueReachedInTest(
+            "A test tried to reach the live Shark options account. Override "
+            "get_shark_options_account and get_executors instead - see tests/conftest.py."
+        )
+
+    # The options account is built from the settings by its own dependency, not
+    # through the factory, so it is refused here separately: a live order in a
+    # test must go through a fake executor or not at all.
+    monkeypatch.setattr(options_account.SharkOptionsAccount, "_request", no_account)
+
     for venue_id, real in list(factory.FACTORIES.items()):
         monkeypatch.setitem(
             factory.FACTORIES,
             venue_id,
-            replace(real, build=refuse(venue_id), stream=None, account=None, expired=None),
+            replace(
+                real,
+                build=refuse(venue_id),
+                stream=None,
+                account=None,
+                expired=None,
+                chain_feed=None,
+            ),
         )
     yield
 

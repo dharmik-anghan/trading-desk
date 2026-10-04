@@ -20,11 +20,12 @@ from venues.instruments import (
     option_underlyings,
 )
 from venues.models import AssetClass, Capability, VenueSpec
-from venues.registry import FYERS, SHARK, VENUES, get, listed, serving
+from venues.registry import FYERS, SHARK, SHARK_OPTIONS, VENUES, get, listed, serving
 
 __all__ = [
     "FYERS",
     "SHARK",
+    "SHARK_OPTIONS",
     "Instrument",
     "VENUES",
     "AssetClass",

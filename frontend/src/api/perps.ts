@@ -3,7 +3,7 @@ import { getJson, postJson, request } from "./http";
 export interface Venue {
   id: string;
   name: string;
-  asset_class: "index_options" | "perpetuals";
+  asset_class: "index_options" | "perpetuals" | "crypto_options";
   quote_currency: string;
   session: string;
   capabilities: string[];

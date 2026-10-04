@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     shark_max_notional: float = 2000.0
     shark_max_leverage: float = 0.0
 
+    # Real orders on Shark's options, from the live strategy builder. Off unless
+    # set: the page offers a live session only when this is true, and the
+    # server refuses one otherwise. The notional cap above applies to each leg
+    # (its quantity at the index price); the daily loss stops new live orders
+    # once today's live legs are down this much, in USDT, fees included.
+    shark_options_live: bool = False
+    shark_options_daily_loss: float = 50.0
+
     # Optional: where alerts are delivered when nobody is watching the screen.
     # Both or neither - with either missing, the desk still records alerts and
     # shows them, it just sends nothing. The bot token is a bearer credential:

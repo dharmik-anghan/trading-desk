@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { getOptbtUnderlyings, runOptbt } from "../api";
+import {
+  deleteStrategy,
+  getCryptoUnderlyings,
+  getOptbtUnderlyings,
+  getStrategies,
+  getStrategyTemplates,
+  runOptbt,
+  saveStrategy,
+} from "../api";
 import type {
+  CryptoUnderlying,
+  SavedStrategy,
+  OptionStrategySpec,
+  StrategyTemplate,
   OptbtAdjust,
   OptbtCoverage,
   OptbtDays,
@@ -17,14 +29,18 @@ import { OptResult } from "./optbt/OptResult";
 import { OPENED } from "./optbt/explore";
 import { ExpiryPicker } from "./optbt/ExpiryPicker";
 import { SignalRows } from "./optbt/SignalRows";
-import { NEAREST_WEEKLY, PRESETS, copyLeg, leg, toRequest } from "./optbt/legs";
+import { NEAREST_WEEKLY, copyLeg, defaultLegs, fromRequest, leg, toRequest } from "./optbt/legs";
 import type { LegDraft } from "./optbt/legs";
 
 interface Props {
   onHome: () => void;
 }
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** The NSE trades five days; a crypto market all seven. */
+const allDays = (crypto: boolean) => (crypto ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4]);
+/** "09:20:00" as the API writes a time, "09:20" as a time input wants it. */
+const hhmm = (t: string) => t.slice(0, 5);
 
 const ANY_DAY: OptbtDays = {
   expiry_day: "any",
@@ -53,7 +69,9 @@ function countDays(d: OptbtDays): number {
 }
 
 /**
- * An option strategy, built leg by leg and run over stored history.
+ * An option strategy, built leg by leg: saved, run over stored history on the
+ * NSE, or - for a crypto underlying, which has no stored history - kept to paper
+ * trade on the live chain.
  *
  * The strategy is what runs; the results below can then be filtered without
  * running it again. "Trade only when" is part of the strategy - conditions
@@ -67,7 +85,15 @@ export function OptionBacktesting({ onHome }: Props) {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
 
-  const [legs, setLegs] = useState<LegDraft[]>(() => PRESETS[0].legs());
+  const [crypto, setCrypto] = useState<CryptoUnderlying[]>([]);
+  const [templates, setTemplates] = useState<StrategyTemplate[]>([]);
+  const [saved, setSaved] = useState<SavedStrategy[]>([]);
+  /** The saved strategy on screen, which Save overwrites; null saves a new one. */
+  const [savedId, setSavedId] = useState<number | null>(null);
+  const [name, setName] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [legs, setLegs] = useState<LegDraft[]>(defaultLegs);
   const [hold, setHold] = useState<"intraday" | "expiry">("intraday");
   const [expiry, setExpiry] = useState<OptbtExpiryChoice>(NEAREST_WEEKLY);
   const [entry, setEntry] = useState("09:20");
@@ -134,6 +160,16 @@ export function OptionBacktesting({ onHome }: Props) {
         }
       })
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
+    // Neither is needed to build or backtest, so a failure leaves them empty.
+    void getCryptoUnderlyings()
+      .then(setCrypto)
+      .catch(() => setCrypto([]));
+    void getStrategyTemplates()
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
+    void getStrategies()
+      .then(setSaved)
+      .catch(() => setSaved([]));
   }, []);
 
   useEffect(() => {
@@ -146,42 +182,134 @@ export function OptionBacktesting({ onHome }: Props) {
   }, [running]);
 
   const window_ = underlyings?.find((u) => u.underlying === underlying);
+  const coin = crypto.find((c) => c.underlying === underlying) ?? null;
+  const isCrypto = coin !== null;
+  const currency = isCrypto ? "$" : "₹";
   const timesOk = hold === "expiry" || entry < exit;
   const canRun =
+    !isCrypto &&
     Boolean(start && end && start <= end) && timesOk && legs.length > 0 && weekdays.length > 0 && !running;
+  const pick = (next: string) => {
+    const goingCrypto = crypto.some((c) => c.underlying === next);
+    if (goingCrypto !== isCrypto) {
+      setWeekdays(allDays(goingCrypto));
+      if (!goingCrypto && expiry.series === "daily") setExpiry({ ...expiry, series: "weekly" });
+    }
+    setUnderlying(next);
+    const u = underlyings?.find((x) => x.underlying === next);
+    if (u) {
+      setStart(u.first_day ?? "");
+      setEnd(u.last_day ?? "");
+    }
+  };
+
+  /** The strategy on screen, as a spec: what Save keeps and a run is sent. */
+  const spec = (): OptionStrategySpec => ({
+    legs: legs.map((l) => toRequest(l, expiry)),
+    expiry,
+    entry,
+    exit,
+    weekdays,
+    hold,
+    mtm_stop: stop.unit === "rs" ? stop.value : null,
+    mtm_target: target.unit === "rs" ? target.value : null,
+    stop_credit: stop.unit === "credit" && stop.value !== null ? stop.value / 100 : null,
+    target_credit: target.unit === "credit" && target.value !== null ? target.value / 100 : null,
+    exit_dte: hold === "expiry" ? exitDte : null,
+    trail_to_cost: trail,
+    days,
+    adjust: { ...adjust, enabled: adjust.enabled && hold === "expiry" },
+    equal_wings: equalWings,
+    trigger,
+    reentry: { ...reentry, enabled: reentry.enabled && hold === "intraday" },
+    entry_signal: entrySignal,
+    exit_signal: exitSignal,
+    slippage: slippage / 100,
+    min_slip: minSlip,
+    brokerage,
+  });
+
+  /** A spec into the form: a template, or a saved strategy. */
+  const load = (s: OptionStrategySpec) => {
+    setLegs(s.legs.map(fromRequest));
+    setExpiry(s.expiry);
+    setEntry(hhmm(s.entry));
+    setExit(hhmm(s.exit));
+    setWeekdays(s.weekdays);
+    setHold(s.hold);
+    const level = (rs: number | null, credit: number | null) =>
+      credit !== null
+        ? { value: Math.round(credit * 1000) / 10, unit: "credit" as const }
+        : { value: rs, unit: "rs" as const };
+    setStop(level(s.mtm_stop, s.stop_credit));
+    setTarget(level(s.mtm_target, s.target_credit));
+    setExitDte(s.exit_dte);
+    setTrail(s.trail_to_cost);
+    setDays(s.days);
+    setAdjust(s.adjust);
+    setEqualWings(s.equal_wings);
+    setTrigger({
+      ...s.trigger,
+      range_until: s.trigger.range_until ? hhmm(s.trigger.range_until) : null,
+    });
+    setReentry(s.reentry);
+    setEntrySignal(s.entry_signal);
+    setExitSignal(s.exit_signal);
+    setSlippage(Math.round(s.slippage * 10000) / 100);
+    setMinSlip(s.min_slip);
+    setBrokerage(s.brokerage);
+  };
+
+  const loadTemplate = (t: StrategyTemplate) => {
+    load(t.spec);
+    // A template is written for any market; the days it trades are this one's.
+    setWeekdays(allDays(isCrypto));
+    setSavedId(null);
+    setName("");
+  };
+
+  const loadSaved = (id: number) => {
+    const s = saved.find((x) => x.id === id);
+    if (!s) return;
+    load(s.spec);
+    pick(s.underlying);
+    setWeekdays(s.spec.weekdays);
+    setSavedId(s.id);
+    setName(s.name);
+  };
+
+  const save = (asNew: boolean) => {
+    setSaveError(null);
+    void saveStrategy({
+      id: asNew || savedId === null ? undefined : savedId,
+      name: name.trim(),
+      underlying,
+      spec: spec(),
+    })
+      .then((s) => {
+        setSavedId(s.id);
+        setSaved((all) => [s, ...all.filter((x) => x.id !== s.id)]);
+      })
+      .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)));
+  };
+
+  const remove = () => {
+    if (savedId === null) return;
+    const id = savedId;
+    void deleteStrategy(id)
+      .then(() => {
+        setSaved((all) => all.filter((x) => x.id !== id));
+        setSavedId(null);
+      })
+      .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)));
+  };
 
   const run = () => {
     setRunning(true);
     setElapsed(0);
     setError(null);
     started.current = performance.now();
-    void runOptbt({
-      underlying,
-      start,
-      end,
-      legs: legs.map((l) => toRequest(l, expiry)),
-      expiry,
-      entry,
-      exit,
-      weekdays,
-      hold,
-      mtm_stop: stop.unit === "rs" ? stop.value : null,
-      mtm_target: target.unit === "rs" ? target.value : null,
-      stop_credit: stop.unit === "credit" && stop.value !== null ? stop.value / 100 : null,
-      target_credit: target.unit === "credit" && target.value !== null ? target.value / 100 : null,
-      exit_dte: hold === "expiry" ? exitDte : null,
-      trail_to_cost: trail,
-      days,
-      adjust: { ...adjust, enabled: adjust.enabled && hold === "expiry" },
-      equal_wings: equalWings,
-      trigger,
-      reentry: { ...reentry, enabled: reentry.enabled && hold === "intraday" },
-      entry_signal: entrySignal,
-      exit_signal: exitSignal,
-      slippage: slippage / 100,
-      min_slip: minSlip,
-      brokerage,
-    })
+    void runOptbt({ ...spec(), underlying, start, end })
       .then((r) => {
         setResult(r);
         setFinished({ at: new Date(), seconds: (performance.now() - started.current) / 1000 });
@@ -201,73 +329,107 @@ export function OptionBacktesting({ onHome }: Props) {
     <main className="bt obt ob">
       <header className="ob-top">
         <BackButton onClick={onHome} />
-        <h1>Options backtest</h1>
+        <h1>Strategy builder</h1>
         <div className="ob-scope">
           <select
             value={underlying}
-            onChange={(e) => {
-              const u = underlyings?.find((x) => x.underlying === e.target.value);
-              setUnderlying(e.target.value);
-              if (u) {
-                setStart(u.first_day ?? "");
-                setEnd(u.last_day ?? "");
-              }
-            }}
+            onChange={(e) => pick(e.target.value)}
             aria-label="Underlying"
-            disabled={!underlyings?.length}
+            disabled={!underlyings?.length && !crypto.length}
           >
-            {(underlyings ?? [{ underlying: "NIFTY" } as OptbtCoverage]).map((u) => (
-              <option key={u.underlying} value={u.underlying}>
-                {u.underlying}
-              </option>
-            ))}
+            <optgroup label="NSE">
+              {(underlyings ?? [{ underlying: "NIFTY" } as OptbtCoverage]).map((u) => (
+                <option key={u.underlying} value={u.underlying}>
+                  {u.underlying}
+                </option>
+              ))}
+            </optgroup>
+            {crypto.length > 0 && (
+              <optgroup label="Crypto">
+                {crypto.map((c) => (
+                  <option key={c.underlying} value={c.underlying}>
+                    {c.underlying}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
-          <input
-            type="date"
-            value={start}
-            min={window_?.first_day ?? undefined}
-            max={window_?.last_day ?? undefined}
-            onChange={(e) => setStart(e.target.value)}
-            aria-label="From"
-          />
-          <span className="ob-to">to</span>
-          <input
-            type="date"
-            value={end}
-            min={window_?.first_day ?? undefined}
-            max={window_?.last_day ?? undefined}
-            onChange={(e) => setEnd(e.target.value)}
-            aria-label="To"
-          />
+          {!isCrypto && (
+            <>
+              <input
+                type="date"
+                value={start}
+                min={window_?.first_day ?? undefined}
+                max={window_?.last_day ?? undefined}
+                onChange={(e) => setStart(e.target.value)}
+                aria-label="From"
+              />
+              <span className="ob-to">to</span>
+              <input
+                type="date"
+                value={end}
+                min={window_?.first_day ?? undefined}
+                max={window_?.last_day ?? undefined}
+                onChange={(e) => setEnd(e.target.value)}
+                aria-label="To"
+              />
+            </>
+          )}
         </div>
       </header>
 
       {loadError && <p className="ob-error">{loadError}</p>}
-      {underlyings && !underlyings.length && (
+      {!isCrypto && underlyings && !underlyings.length && (
         <p className="ob-error">No option history yet. Run scripts/backfill_options.py to fetch it.</p>
       )}
 
       <section className="ob-strategy" aria-label="Strategy">
         <div className="ob-presets">
-          {PRESETS.map((p) => (
-            <button
-              key={p.name}
-              onClick={() => {
-                setLegs(p.legs());
-                if (p.hold) setHold(p.hold);
-                setExpiry(p.expiry ?? NEAREST_WEEKLY);
-                setDays((d) => ({ ...d, dte_min: p.dte?.[0] ?? null, dte_max: p.dte?.[1] ?? null }));
-                if (p.targetCredit) setTarget({ value: p.targetCredit, unit: "credit" });
-                if (p.stopCredit) setStop({ value: p.stopCredit, unit: "credit" });
-                setAdjust((a) => ({ ...a, enabled: Boolean(p.adjust) }));
-                setEqualWings(Boolean(p.equalWings));
-                if (p.exitDte !== undefined) setExitDte(p.exitDte);
-              }}
-              title={p.say}
-            >
-              {p.name}
+          {templates.map((t) => (
+            <button key={t.id} onClick={() => loadTemplate(t)} title={t.say}>
+              {t.name}
             </button>
           ))}
+          <div className="ob-saved">
+            <select
+              value={savedId ?? ""}
+              onChange={(e) => e.target.value && loadSaved(Number(e.target.value))}
+              aria-label="Saved strategies"
+              disabled={!saved.length}
+            >
+              <option value="">{saved.length ? "Saved…" : "None saved"}</option>
+              {saved.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name} · {x.underlying}
+                </option>
+              ))}
+            </select>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name"
+              aria-label="Strategy name"
+              maxLength={80}
+            />
+            <button onClick={() => save(false)} disabled={!name.trim()}>
+              Save
+            </button>
+            {savedId !== null && (
+              <>
+                <button
+                  onClick={() => save(true)}
+                  disabled={!name.trim()}
+                  title="Keep the saved one, save this beside it"
+                >
+                  Save as new
+                </button>
+                <button onClick={remove} title="Delete the saved strategy" aria-label="Delete saved strategy">
+                  ✕
+                </button>
+              </>
+            )}
+            {saveError && <span className="ob-error">{saveError}</span>}
+          </div>
         </div>
 
         <div className="ob-legs">
@@ -280,6 +442,8 @@ export function OptionBacktesting({ onHome }: Props) {
               onCopy={() => setLegs((all) => [...all.slice(0, i + 1), copyLeg(l), ...all.slice(i + 1)])}
               onRemove={legs.length > 1 ? () => setLegs((all) => all.filter((_, k) => k !== i)) : null}
               daysSeries={expiry.series === "days"}
+              coin={coin && { name: coin.underlying, step: coin.qty_step }}
+              currency={currency}
             />
           ))}
           <div className="ob-legfoot">
@@ -297,7 +461,7 @@ export function OptionBacktesting({ onHome }: Props) {
         </div>
 
         <div className="ob-timing">
-          <ExpiryPicker value={expiry} onChange={setExpiry} />
+          <ExpiryPicker value={expiry} onChange={setExpiry} daily={isCrypto} />
           <div className="ob-seg" aria-label="Holding">
             <button className={hold === "intraday" ? "on" : ""} onClick={() => setHold("intraday")}>
               Intraday
@@ -352,7 +516,7 @@ export function OptionBacktesting({ onHome }: Props) {
             <input type="time" step={60} value={exit} onChange={(e) => setExit(e.target.value)} />
           </label>
           <div className="ob-seg days" aria-label="Weekdays">
-            {WEEKDAYS.map((d, i) => (
+            {WEEKDAYS.slice(0, isCrypto ? 7 : 5).map((d, i) => (
               <button
                 key={d}
                 className={weekdays.includes(i) ? "on" : ""}
@@ -390,41 +554,45 @@ export function OptionBacktesting({ onHome }: Props) {
               hi={days.dte_max}
               onChange={(lo, hi) => setDays({ ...days, dte_min: lo, dte_max: hi })}
             />
-            <Range
-              label="VIX"
-              lo={days.vix_min}
-              hi={days.vix_max}
-              onChange={(lo, hi) => setDays({ ...days, vix_min: lo, vix_max: hi })}
-            />
-            <Range
-              label="VIX percentile"
-              lo={days.vix_pct_min}
-              hi={days.vix_pct_max}
-              onChange={(lo, hi) => setDays({ ...days, vix_pct_min: lo, vix_pct_max: hi })}
-              title="0–100, ranked against the previous year of sessions"
-            />
-            <Range
-              label="Gap at open, %"
-              lo={days.gap_min}
-              hi={days.gap_max}
-              onChange={(lo, hi) => setDays({ ...days, gap_min: lo, gap_max: hi })}
-            />
+            {!isCrypto && (
+              <>
+                <Range
+                  label="VIX"
+                  lo={days.vix_min}
+                  hi={days.vix_max}
+                  onChange={(lo, hi) => setDays({ ...days, vix_min: lo, vix_max: hi })}
+                />
+                <Range
+                  label="VIX percentile"
+                  lo={days.vix_pct_min}
+                  hi={days.vix_pct_max}
+                  onChange={(lo, hi) => setDays({ ...days, vix_pct_min: lo, vix_pct_max: hi })}
+                  title="0–100, ranked against the previous year of sessions"
+                />
+                <Range
+                  label="Gap at open, %"
+                  lo={days.gap_min}
+                  hi={days.gap_max}
+                  onChange={(lo, hi) => setDays({ ...days, gap_min: lo, gap_max: hi })}
+                />
             <label className="ob-field" title="Classic pivots from the previous day's high, low and close">
-              <span>Opened</span>
-              <select
-                value={Object.keys(OPENED).find((k) => same(OPENED[k].zones, days.open_zones)) ?? ""}
-                onChange={(e) =>
+                  <span>Opened</span>
+                  <select
+                    value={Object.keys(OPENED).find((k) => same(OPENED[k].zones, days.open_zones)) ?? ""}
+                    onChange={(e) =>
                   setDays({ ...days, open_zones: e.target.value ? OPENED[e.target.value].zones : [] })
-                }
-              >
-                <option value="">Anywhere</option>
-                {Object.entries(OPENED).map(([k, o]) => (
-                  <option key={k} value={k}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                    }
+                  >
+                    <option value="">Anywhere</option>
+                    {Object.entries(OPENED).map(([k, o]) => (
+                      <option key={k} value={k}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             {conditions > 0 && (
               <button className="ob-reset" onClick={() => setDays(ANY_DAY)}>
                 Clear conditions
@@ -481,8 +649,8 @@ export function OptionBacktesting({ onHome }: Props) {
             Exit the whole position{exits > 0 && <em>{exits}</em>}
           </summary>
           <div className="ob-grid">
-            <Limit label="Stop at a loss of" value={stop} onChange={setStop} />
-            <Limit label="Take profit at" value={target} onChange={setTarget} />
+            <Limit label="Stop at a loss of" value={stop} onChange={setStop} currency={currency} />
+            <Limit label="Take profit at" value={target} onChange={setTarget} currency={currency} />
             {hold === "expiry" && (
               <label className="ob-field" title="Closes at the exit time on that day, whatever the P&L">
                 <span>Close at days to expiry</span>
@@ -626,6 +794,7 @@ export function OptionBacktesting({ onHome }: Props) {
           </details>
         )}
 
+        {!isCrypto && (
         <details className="ob-more">
           <summary>
             Costs<span className="ob-sum">
@@ -650,17 +819,24 @@ export function OptionBacktesting({ onHome }: Props) {
             </label>
           </div>
         </details>
+        )}
 
         <div className="ob-go">
           {!timesOk && <span className="ob-error">Exit must be after entry.</span>}
           {error && <span className="ob-error">{error}</span>}
-          <button className="ob-run" onClick={run} disabled={!canRun}>
-            {running ? `Running… ${elapsed} s` : "Run backtest"}
-          </button>
+          {isCrypto ? (
+            <button className="ob-run" disabled title="Save it, then open it in the live strategy builder to paper trade it">
+              Paper trade
+            </button>
+          ) : (
+            <button className="ob-run" onClick={run} disabled={!canRun}>
+              {running ? `Running… ${elapsed} s` : "Run backtest"}
+            </button>
+          )}
         </div>
       </section>
 
-      {result && finished && (
+      {!isCrypto && result && finished && (
         <OptResult result={result} stale={running} finishedAt={finished.at} seconds={finished.seconds} />
       )}
     </main>
@@ -756,15 +932,17 @@ function Limit({
   label,
   value,
   onChange,
+  currency,
 }: {
   label: string;
   value: { value: number | null; unit: "rs" | "credit" };
   onChange: (v: { value: number | null; unit: "rs" | "credit" }) => void;
+  currency: string;
 }) {
   return (
     <div
       className="ob-field"
-      title={value.unit === "credit" ? "Of the credit this trade took in: a ₹10,000 credit at 50% is ₹5,000" : undefined}
+      title={value.unit === "credit" ? `Of the credit this trade took in: a ${currency}10,000 credit at 50% is ${currency}5,000` : undefined}
     >
       <span>{label}</span>
       <div className="ob-limit">
@@ -784,7 +962,7 @@ function Limit({
           onChange={(e) => onChange({ ...value, unit: e.target.value as "rs" | "credit" })}
           aria-label={`${label} in`}
         >
-          <option value="rs">₹</option>
+          <option value="rs">{currency}</option>
           <option value="credit">% of credit</option>
         </select>
       </div>

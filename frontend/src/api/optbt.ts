@@ -17,10 +17,11 @@ export interface OptbtCoverage {
 /**
  * Which expiry: the `nth` of a series, passing over any with fewer than
  * `min_left` trading sessions left (1 skips an expiry on its own day).
- * "days" is the monthly nearest `days` calendar days out.
+ * "days" is the monthly nearest `days` calendar days out. "daily" is every
+ * listed expiry; on the NSE it is the same as "weekly".
  */
 export interface OptbtExpiryChoice {
-  series: "weekly" | "monthly" | "days";
+  series: "daily" | "weekly" | "monthly" | "days";
   nth: number;
   min_left: number;
   days: number;
