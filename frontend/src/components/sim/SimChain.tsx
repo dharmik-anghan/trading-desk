@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { SimMoment, SimSide } from "../../api";
+import type { SimFetch, SimMoment, SimSide } from "../../api";
 import { compact, num } from "../../format";
 import type { Leg } from "./legs";
 
@@ -8,6 +8,8 @@ interface Props {
   legs: Leg[];
   onTrade: (side: "buy" | "sell", kind: "CE" | "PE", strike: number) => void;
   onExpiry: (expiry: string) => void;
+  /** What is being fetched from Fyers for this page, while it is. */
+  loading: SimFetch | null;
 }
 
 /** A price this much older than the moment is marked as not having traded since. */
@@ -28,7 +30,7 @@ function stale(side: SimSide, at: string): boolean {
  * between. In-the-money halves are shaded; the ATM row is marked; a strike you
  * hold says so beside its price. Hovering a row offers B and S on each side.
  */
-export function SimChain({ moment, legs, onTrade, onExpiry }: Props) {
+export function SimChain({ moment, legs, onTrade, onExpiry, loading }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const atmRow = useRef<HTMLTableRowElement>(null);
   const maxOi = useMemo(() => {
@@ -109,9 +111,10 @@ export function SimChain({ moment, legs, onTrade, onExpiry }: Props) {
           </select>
         )}
       </div>
+      {loading && <Loading fetch={loading} />}
       <div className="sim-table" ref={box}>
         {moment.rows.length === 0 ? (
-          <p className="sim-empty">No contracts of this expiry traded by this moment.</p>
+          <p className="sim-empty">{loading ? "" : "No contracts of this expiry traded by this moment."}</p>
         ) : (
           <table>
             <thead>
@@ -160,6 +163,26 @@ export function SimChain({ moment, legs, onTrade, onExpiry }: Props) {
         )}
       </div>
     </section>
+  );
+}
+
+/** What is being fetched from Fyers for the page, while it is. */
+export function Loading({ fetch }: { fetch: SimFetch }) {
+  const what = fetch.expiry ? `the ${dayLabel(fetch.expiry)} expiry` : dayLabel(fetch.day);
+  const step =
+    fetch.state === "fetching"
+      ? `${fetch.done} / ${fetch.total} contracts`
+      : fetch.state === "index"
+        ? "the session"
+        : "the expiries";
+  const share = fetch.total ? (fetch.done / fetch.total) * 100 : 0;
+  return (
+    <div className="sim-source" role="status">
+      <span>
+        Loading {what} from Fyers · {step}
+      </span>
+      <i style={{ width: `${share}%` }} />
+    </div>
   );
 }
 

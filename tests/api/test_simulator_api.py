@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import date, time
 from pathlib import Path
 
 import pytest
@@ -10,9 +10,34 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.deps import get_db_path
+from api.routers import simulator
 from api.routers.simulator import router
+from optbt.data.live import Progress
 from optbt.data.models import Kind
 from tests.optbt.test_option_engine import DAY, EXPIRY, LOT, Market
+
+
+class _Fetcher:
+    def reset(self) -> None:
+        self.started: list[tuple[object, str, object, object]] = []
+        self._asked: set[object] = set()
+        self.progress: Progress | None = None
+
+    def asked(self, key: object) -> bool:
+        return key in self._asked
+
+    @property
+    def running(self) -> Progress | None:
+        return self.progress
+
+    def start(self, key: object, underlying: str, day: object, expiry: object) -> Progress:
+        self._asked.add(key)
+        self.started.append((key, underlying, day, expiry))
+        self.progress = Progress(underlying, day, expiry)  # type: ignore[arg-type]
+        return self.progress
+
+
+FETCHER = _Fetcher()
 
 
 @pytest.fixture
@@ -28,6 +53,9 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     m.conn.execute("COPY FROM DATABASE memory TO out")
     m.conn.execute("DETACH out")
     monkeypatch.setenv("OPTBT_STORE", str(path))
+    # Never Fyers from a test: a stand-in that records what it was asked for.
+    monkeypatch.setattr(simulator, "_live_fetcher", lambda: FETCHER)
+    FETCHER.reset()
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_db_path] = lambda: tmp_path / "trading.db"
@@ -76,3 +104,30 @@ def test_sessions_save_list_overwrite_and_delete(client: TestClient) -> None:
     assert client.delete(f"/api/sim/sessions/{saved['id']}").json() == {"deleted": True}
     assert client.get("/api/sim/sessions").json() == []
     assert client.delete(f"/api/sim/sessions/{saved['id']}").status_code == 404
+
+
+def test_a_held_moment_fetches_nothing(client: TestClient) -> None:
+    body = client.post("/api/sim/moment", json={"at": f"{DAY}T10:30:00"}).json()
+    assert body["loading"] is None
+    assert FETCHER.started == []
+
+
+def test_a_weekday_the_store_lacks_is_fetched_rather_than_skipped(client: TestClient) -> None:
+    """Friday the 18th is not in the store: the page waits for it rather than
+    being moved to the Monday it does have."""
+    body = client.post("/api/sim/moment", json={"at": "2026-09-18T10:30:00"}).json()
+    assert body == {"loading": body["loading"]}
+    assert body["loading"]["day"] == "2026-09-18"
+    (started,) = FETCHER.started
+    assert started[1:] == ("NIFTY", date(2026, 9, 18), None)
+    # Asked once: the same request again does not start it again.
+    FETCHER.progress = None
+    client.post("/api/sim/moment", json={"at": "2026-09-18T10:30:00"})
+    assert len(FETCHER.started) == 1
+
+
+def test_an_index_with_nothing_held_is_fetched(client: TestClient) -> None:
+    body = client.post(
+        "/api/sim/moment", json={"underlying": "BANKNIFTY", "at": f"{DAY}T10:30:00"}
+    ).json()
+    assert body["loading"]["underlying"] == "BANKNIFTY"

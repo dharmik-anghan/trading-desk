@@ -1,6 +1,9 @@
 """The simulator: the stored option market at any minute, traded by hand.
 
+    GET  /api/sim/underlyings     every index the simulator can open
+    GET  /api/sim/calendar        a month's sessions and expiries, for the date picker
     POST /api/sim/moment          the market at a moment, and the legs marked there
+    GET  /api/sim/fetch           how a fetch from Fyers is going
     GET  /api/sim/sessions        saved sessions
     POST /api/sim/sessions        save one (a new one, or overwrite by id)
     DELETE /api/sim/sessions/{id}
@@ -8,22 +11,39 @@
 The page holds the legs and sends them with every step; the server fills what
 has not been priced, applies any stop, target or expiry that the step went
 over, and sends them back. See `optbt/simulator.py`.
+
+What the store does not have - an index never fetched, a day before it starts,
+an expiry not yet held or one still trading - is fetched from Fyers when a
+moment asks for it (`optbt/data/live.py`). The moment says so with `loading`,
+and the page asks again once the fetch is done.
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Any, Literal
+from collections.abc import Hashable
+from datetime import UTC, date, datetime, timedelta
+from typing import Any, Literal, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+import paths
 from api.deps import DbPathDep
 from api.routers.optbt import STRICT, _history
 from api.store import open_db
+from broker.factory import expired_source_for, is_configured
+from jobs.option_backfill import in_quiet_hours
+from optbt.costs import CostModel
+from optbt.data.backfill import EARLIEST
+from optbt.data.live import Fetcher, Progress
 from optbt.data.models import Kind
-from optbt.simulator import Clock, LegState, SimLeg, moment
+from optbt.data.source import LiveSource
+from optbt.data.store import OptionStore
+from optbt.simulator import Clock, LegState, Moment, Rule, SimLeg, moment
 from storage import sim_repo
+from venues import AssetClass, serving
+from venues.calendar import IST
+from venues.instruments import OPTION_SERIES
 
 router = APIRouter(tags=["simulator"], prefix="/api/sim")
 
@@ -47,6 +67,26 @@ class SimLegIn(BaseModel):
     enabled: bool = True
 
 
+class RuleIn(BaseModel):
+    """Square everything off when the included legs' net P&L reaches these, in rupees."""
+
+    model_config = STRICT
+
+    stop: float | None = Field(default=None, gt=0)
+    target: float | None = Field(default=None, gt=0)
+
+
+class CostsIn(BaseModel):
+    """The backtest's cost model: slippage a fraction of premium per fill, with a
+    floor in rupees; brokerage per order. Taxes are the dated statutory ones."""
+
+    model_config = STRICT
+
+    slippage: float = Field(default=0.003, ge=0, le=0.1)
+    min_slip: float = Field(default=0.05, ge=0, le=5)
+    brokerage: float = Field(default=20.0, ge=0, le=500)
+
+
 class MomentRequest(BaseModel):
     model_config = STRICT
 
@@ -62,6 +102,8 @@ class MomentRequest(BaseModel):
     since: datetime | None = None
     multiplier: int = Field(default=1, ge=1, le=100)
     legs: list[SimLegIn] = Field(default_factory=list, max_length=40)
+    rule: RuleIn = Field(default_factory=RuleIn)
+    costs: CostsIn = Field(default_factory=CostsIn)
 
 
 class SideOut(BaseModel):
@@ -92,6 +134,9 @@ class LegOut(SimLegIn):
     ltp_at: datetime | None
     iv: float | None
     error: str | None
+    #: Charges and slippage, an open leg's exit at its last price included.
+    charges: float
+    slippage: float
 
 
 class PayoffOut(BaseModel):
@@ -107,6 +152,38 @@ class PayoffOut(BaseModel):
     breakevens: list[float]
     pop: float | None
     sd: list[float]
+    #: Margin today's rules would ask for the open legs: SPAN and exposure.
+    span: float
+    exposure: float
+    #: Charges and slippage of the included legs; `net` is `pnl` less them.
+    charges: float
+    net: float
+
+
+class FetchOut(BaseModel):
+    underlying: str
+    day: date
+    expiry: date | None
+    state: Literal["index", "listing", "fetching", "done", "failed"]
+    total: int
+    done: int
+    bars: int
+    failed: int
+    error: str | None
+    started_at: datetime
+    finished_at: datetime | None
+
+
+class LoadingOut(BaseModel):
+    """No moment yet: the day is being fetched. Ask again when it is done."""
+
+    loading: FetchOut
+
+
+class SquaredOut(BaseModel):
+    reason: Literal["portfolio stop", "portfolio target"]
+    at: datetime
+    net: float
 
 
 class MomentOut(BaseModel):
@@ -125,6 +202,10 @@ class MomentOut(BaseModel):
     rows: list[RowOut]
     legs: list[LegOut]
     payoff: PayoffOut
+    #: What is being fetched from Fyers for this moment, if anything.
+    loading: FetchOut | None = None
+    #: The whole position squared off by its P&L rule on the way here.
+    squared: SquaredOut | None = None
 
 
 def _leg_in(leg: SimLegIn) -> SimLeg:
@@ -169,16 +250,77 @@ def _leg_out(s: LegState) -> LegOut:
         ltp_at=s.ltp_at,
         iv=s.iv,
         error=s.error,
+        charges=s.charges,
+        slippage=s.slippage,
     )
 
 
+def _today() -> date:
+    return datetime.now(IST).date()
+
+
+#: Something to fetch: what it is (so it is asked for once), the day, the expiry.
+Want = tuple[Hashable, date, date | None]
+
+
+def _wants(clock: Clock | None, request: MomentRequest) -> Want | None:
+    """A day the request names that the store does not hold: (key, day, None)."""
+    today = _today()
+    if clock is None:
+        day = request.at.date() if request.at else today - timedelta(days=1)
+        while day.weekday() >= 5:
+            day -= timedelta(days=1)
+        return (request.underlying, "day", day), day, None
+    if request.at is None or request.move:
+        return None
+    day = request.at.date()
+    if day in clock.days or day.weekday() >= 5 or day >= today or day < EARLIEST:
+        return None
+    return (request.underlying, "day", day), day, None
+
+
+def _stale_expiry(m: Moment, underlying: str) -> Want | None:
+    """The chosen expiry, if it is not held - or held only as far as some day
+    before the moment shows and before yesterday."""
+    chosen = next((e for e in m.expiries if e.expiry == m.expiry), None)
+    day = m.at.date()
+    if chosen is None:
+        return (underlying, "expiry-on", day), day, None
+    if chosen.status == "missing":
+        return (underlying, "expiry", chosen.expiry), day, chosen.expiry
+    if chosen.status == "live" and chosen.through is not None:
+        wanted = min(day, _today() - timedelta(days=1))
+        if chosen.through.date() < wanted:
+            return (underlying, "refresh", chosen.expiry, _today()), day, chosen.expiry
+    return None
+
+
+def _fetch(want: Want | None, underlying: str) -> FetchOut | None:
+    """Start fetching what is wanted, unless it was asked for already; and say
+    what is being fetched now, if anything."""
+    fetcher = _live_fetcher()
+    if fetcher is None:
+        return None
+    if want is not None and not fetcher.asked(want[0]):
+        fetcher.start(want[0], underlying, want[1], want[2])
+    running = fetcher.running
+    return _fetch_out(running) if running is not None else None
+
+
 @router.post("/moment")
-def at_moment(request: MomentRequest) -> MomentOut:
+def at_moment(request: MomentRequest) -> MomentOut | LoadingOut:
     with _history(request.underlying) as h:
         try:
-            clock = Clock(h)
-        except ValueError as exc:
-            raise HTTPException(404, str(exc)) from exc
+            clock: Clock | None = Clock(h)
+        except ValueError:
+            clock = None
+        day_wanted = _wants(clock, request)
+        if clock is None or day_wanted is not None:
+            loading = _fetch(day_wanted, request.underlying)
+            if loading is not None:
+                return LoadingOut(loading=loading)
+            if clock is None:
+                raise HTTPException(404, f"No {request.underlying} history to open.")
         m = moment(
             clock,
             request.at,
@@ -187,6 +329,12 @@ def at_moment(request: MomentRequest) -> MomentOut:
             [_leg_in(leg) for leg in request.legs],
             request.since,
             request.multiplier,
+            rule=Rule(request.rule.stop, request.rule.target),
+            costs=CostModel(
+                brokerage_per_order=request.costs.brokerage,
+                slippage=request.costs.slippage,
+                min_slip=request.costs.min_slip,
+            ),
         )
     p = m.payoff
     return MomentOut(
@@ -211,8 +359,88 @@ def at_moment(request: MomentRequest) -> MomentOut:
             for r in m.rows
         ],
         legs=[_leg_out(s) for s in m.legs],
-        payoff=PayoffOut(**vars(p)),
+        payoff=PayoffOut(**vars(p), net=p.net),
+        squared=SquaredOut(**vars(m.squared)) if m.squared else None,
+        loading=_fetch(_stale_expiry(m, request.underlying), request.underlying),
     )
+
+
+# --------------------------------------------------------------------- fetch
+
+
+_fetcher: Fetcher | None = None
+
+
+def _live_fetcher() -> Fetcher | None:
+    """The fetcher, or None when no broker is set up to fetch from."""
+    global _fetcher
+    if _fetcher is None:
+        venue = serving(AssetClass.INDEX_OPTIONS)
+        source = expired_source_for(venue)
+        if source is None or not is_configured(venue):
+            return None
+        _fetcher = Fetcher(
+            source=lambda: cast(LiveSource, source()),
+            store=lambda: OptionStore(paths.options_store_path()),
+            market_open=lambda: in_quiet_hours(datetime.now(UTC)),
+            today=_today,
+        )
+    return _fetcher
+
+
+def _fetch_out(p: Progress) -> FetchOut:
+    return FetchOut(
+        underlying=p.underlying,
+        day=p.day,
+        expiry=p.expiry,
+        state=p.state,
+        total=p.total,
+        done=p.done,
+        bars=p.bars,
+        failed=len(p.failed),
+        error=p.error,
+        started_at=p.started_at,
+        finished_at=p.finished_at,
+    )
+
+
+@router.get("/fetch")
+def fetch_status() -> FetchOut | None:
+    """The fetch running, or the last one."""
+    p = _fetcher.progress if _fetcher is not None else None
+    return _fetch_out(p) if p is not None else None
+
+
+@router.get("/underlyings")
+def underlyings() -> list[str]:
+    return list(OPTION_SERIES)
+
+
+class MonthOut(BaseModel):
+    """One month of the calendar, as far as the store knows it."""
+
+    #: Sessions held for the index.
+    sessions: list[date]
+    #: Option expiries listed.
+    expiries: list[date]
+    #: The span the store holds sessions for. A weekday inside it that is not a
+    #: session was a holiday; outside it, nothing is known yet.
+    first: date | None
+    last: date | None
+
+
+@router.get("/calendar")
+def calendar(underlying: str = "NIFTY", month: str = Query(pattern=r"^\d{4}-\d{2}$")) -> MonthOut:
+    start = date.fromisoformat(f"{month}-01")
+    end = (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    with _history(underlying) as h:
+        held = h.trading_days(date(2000, 1, 1), date(2100, 1, 1))
+        return MonthOut(
+            sessions=[d for d in held if start <= d <= end],
+            expiries=[e for e in h.expiries() if start <= e <= end],
+            first=held[0] if held else None,
+            last=held[-1] if held else None,
+        )
 
 
 # ------------------------------------------------------------------ sessions

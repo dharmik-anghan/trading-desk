@@ -1,7 +1,7 @@
-import type { SimMoment } from "../../api";
-import { num, signed } from "../../format";
+import type { ExitAll, SimCosts, SimMoment } from "../../api";
+import { compact, num, signed } from "../../format";
 import type { Leg } from "./legs";
-import { legPnl, levelFrom, levelPct } from "./legs";
+import { legNet, legPnl, levelFrom, levelPct } from "./legs";
 
 interface Props {
   moment: SimMoment;
@@ -17,6 +17,13 @@ interface Props {
   onReenter: (id: string) => void;
   onRemove: (id: string) => void;
   onToggleAll: (on: boolean) => void;
+  /** Square everything off at a net P&L, in rupees or percent of margin. */
+  exitAll: ExitAll;
+  onExitAll: (rule: ExitAll) => void;
+  costs: SimCosts;
+  onCosts: (costs: SimCosts) => void;
+  /** The last square-off by that rule. */
+  squared: SimMoment["squared"];
 }
 
 const dayLabel = (iso: string) =>
@@ -32,7 +39,12 @@ const tone = (v: number | null) => (v === null ? "" : v > 0 ? "up" : v < 0 ? "dn
 /** Every leg traded in this session, open or closed, with what it has made. */
 export function SimPositions(props: Props) {
   const { moment, legs, multiplier } = props;
-  const total = legs.reduce((a, l) => a + (l.enabled ? (legPnl(l, multiplier) ?? 0) : 0), 0);
+  const gross = legs.reduce((a, l) => a + (l.enabled ? (legPnl(l, multiplier) ?? 0) : 0), 0);
+  const charges = legs.reduce(
+    (a, l) => a + (l.enabled && legPnl(l, multiplier) !== null ? (l.charges ?? 0) : 0),
+    0,
+  );
+  const total = gross - charges;
   const qty = legs
     .filter((l) => l.enabled && l.status === "open")
     .reduce((a, l) => a + (l.side === "buy" ? 1 : -1) * l.lots * (l.lot_size ?? 0) * multiplier, 0);
@@ -62,10 +74,25 @@ export function SimPositions(props: Props) {
           </button>
         </label>
         <span className="sim-qty">Net qty {signed(qty)}</span>
-        <span className={`sim-total ${tone(total)}`}>
-          Total P&amp;L <b>{signed(total)}</b>
+        <ExitAllControl
+          value={props.exitAll}
+          onChange={props.onExitAll}
+          margin={moment.payoff.span + moment.payoff.exposure}
+        />
+        <Costs value={props.costs} onChange={props.onCosts} />
+        <span
+          className={`sim-total ${tone(total)}`}
+          title={`Gross ${signed(gross)} · charges and slippage ${signed(-charges)}`}
+        >
+          Net P&amp;L <b>{signed(total)}</b>
         </span>
       </header>
+      {props.squared && (
+        <p className={`sim-squared ${tone(props.squared.net)}`} role="status">
+          Squared off at {clock(props.squared.at)} on the P&amp;L{" "}
+          {props.squared.reason === "portfolio stop" ? "stop" : "target"} · net {signed(props.squared.net)}
+        </p>
+      )}
       {legs.length === 0 ? (
         <p className="sim-empty">Hover a strike in the chain and press B or S.</p>
       ) : (
@@ -88,14 +115,17 @@ export function SimPositions(props: Props) {
                 <th>Type</th>
                 <th className="r">Entry</th>
                 <th className="r">LTP / exit</th>
-                <th className="r">P&amp;L</th>
+                <th className="r" title="After charges and slippage, an open leg's exit included">
+                  Net P&amp;L
+                </th>
                 <th title="Stop and target, % of the entry price against and for the position">SL / TG %</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {legs.map((l) => {
-                const pnl = legPnl(l, multiplier);
+                const pnl = legNet(l, multiplier);
+                const legGross = legPnl(l, multiplier);
                 const open = l.status === "open" || l.status === "pending";
                 const editable = open && l.entry_price !== null;
                 return (
@@ -208,7 +238,16 @@ export function SimPositions(props: Props) {
                         "…"
                       )}
                     </td>
-                    <td className={`r ${tone(pnl)}`}>{pnl === null ? "" : signed(pnl)}</td>
+                    <td
+                      className={`r ${tone(pnl)}`}
+                      title={
+                        legGross === null
+                          ? undefined
+                          : `Gross ${signed(legGross)} · charges ${signed(-((l.charges ?? 0) - (l.slippage ?? 0)))} · slippage ${signed(-(l.slippage ?? 0))}`
+                      }
+                    >
+                      {pnl === null ? "" : signed(pnl)}
+                    </td>
                     <td>
                       <div className="sim-levels">
                         <Pct
@@ -285,5 +324,101 @@ function Pct({
       onChange={(e) => onChange(e.target.value === "" ? null : Math.max(0.1, Number(e.target.value)))}
       aria-label={`${label}, % of entry`}
     />
+  );
+}
+
+/** Square everything off at a net P&L: a loss and a profit, in rupees or % of margin. */
+function ExitAllControl({
+  value,
+  onChange,
+  margin,
+}: {
+  value: ExitAll;
+  onChange: (rule: ExitAll) => void;
+  margin: number;
+}) {
+  const read = (t: string) => (t === "" ? null : Math.max(0, Number(t)));
+  const inRs = (v: number | null) =>
+    v === null || value.unit === "rs" ? null : ((value.base ?? margin) * v) / 100;
+  const hint = (v: number | null) => {
+    const rs = inRs(v);
+    return rs === null ? undefined : `₹${compact(rs)} of a ₹${compact(value.base ?? margin)} margin`;
+  };
+  const armed = value.stop !== null || value.target !== null;
+  return (
+    <div
+      className={`sim-exitall${armed ? " on" : ""}`}
+      title="Square off every included leg when the net P&L reaches either"
+    >
+      <span>Exit all at</span>
+      <input
+        type="number"
+        min={0}
+        placeholder="loss"
+        value={value.stop ?? ""}
+        onChange={(e) => onChange({ ...value, stop: read(e.target.value) })}
+        aria-label="Loss to square off at"
+        title={hint(value.stop)}
+      />
+      <input
+        type="number"
+        min={0}
+        placeholder="profit"
+        value={value.target ?? ""}
+        onChange={(e) => onChange({ ...value, target: read(e.target.value) })}
+        aria-label="Profit to square off at"
+        title={hint(value.target)}
+      />
+      <select
+        value={value.unit}
+        onChange={(e) => onChange({ ...value, unit: e.target.value as ExitAll["unit"] })}
+        aria-label="In rupees or percent of margin"
+      >
+        <option value="rs">₹</option>
+        <option value="pct">% margin</option>
+      </select>
+    </div>
+  );
+}
+
+/** Slippage and brokerage; the taxes are the statutory ones for each day. */
+function Costs({ value, onChange }: { value: SimCosts; onChange: (c: SimCosts) => void }) {
+  return (
+    <details className="sim-costs">
+      <summary title="Charges and slippage taken off every fill">
+        Costs · {(value.slippage * 100).toFixed(2)}% · ₹{value.brokerage}
+      </summary>
+      <div>
+        <label>
+          <span>Slippage, % of premium</span>
+          <input
+            type="number"
+            min={0}
+            step={0.05}
+            value={Number((value.slippage * 100).toFixed(3))}
+            onChange={(e) => onChange({ ...value, slippage: Math.max(0, Number(e.target.value)) / 100 })}
+          />
+        </label>
+        <label>
+          <span>At least, ₹</span>
+          <input
+            type="number"
+            min={0}
+            step={0.05}
+            value={value.min_slip}
+            onChange={(e) => onChange({ ...value, min_slip: Math.max(0, Number(e.target.value)) })}
+          />
+        </label>
+        <label>
+          <span>Brokerage, ₹ an order</span>
+          <input
+            type="number"
+            min={0}
+            value={value.brokerage}
+            onChange={(e) => onChange({ ...value, brokerage: Math.max(0, Number(e.target.value)) })}
+          />
+        </label>
+      </div>
+    </details>
   );
 }

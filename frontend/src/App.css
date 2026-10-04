@@ -5314,7 +5314,6 @@ a.nitem:hover .nhead {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 5px;
-  overflow: hidden;
 }
 .sim-time button {
   height: 38px;
@@ -5338,20 +5337,172 @@ a.nitem:hover .nhead {
 .sim-when {
   position: relative;
   display: flex;
+  border-right: 1px solid var(--grid);
+  background: var(--selbg);
+}
+.sim .sim-when-label {
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   font: 600 13px var(--n);
-  border-right: 1px solid var(--grid);
-  background: var(--selbg);
+  border-right: none;
+}
+.sim-when-label svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+.sim-cal {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.sim .sim-cal button {
+  height: auto;
+  border: none;
+  border-right: none;
+  background: none;
+  color: var(--fg);
   cursor: pointer;
 }
-/* The picker sits invisibly over the label, which reads better than its own text. */
-.sim-when input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
+.sim-cal-days {
+  width: 270px;
+  padding: 8px 10px 6px;
+}
+.sim-cal-days header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.sim-cal-days header b {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+}
+.sim .sim-cal-days header button {
+  width: 24px;
+  height: 24px;
+  color: var(--dim);
+  font-size: 14px !important;
+}
+.sim-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.sim-cal-grid .wk {
+  padding: 4px 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--dim);
+}
+.sim .sim-cal-grid button {
+  width: 32px;
+  height: 30px;
+  margin: 0 auto;
+  font-size: 12px !important;
+  border-radius: 50%;
+}
+.sim .sim-cal-grid button:hover:not(:disabled) {
+  background: var(--selbg);
+}
+.sim .sim-cal-grid button:disabled {
+  color: var(--line);
+  cursor: default;
+}
+.sim .sim-cal-grid button.exp {
+  color: var(--you-fg);
+  background: var(--up);
+}
+.sim .sim-cal-grid button.holiday {
+  color: var(--you-fg);
+  background: var(--dim);
+  opacity: 0.6;
+}
+.sim .sim-cal-grid button.on {
+  outline: 2px solid var(--you);
+  outline-offset: -1px;
+}
+.sim-cal-days footer {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 6px;
+  padding-top: 6px;
+  font-size: 11px;
+  color: var(--dim);
+  border-top: 1px solid var(--grid);
+}
+.sim-cal-days footer i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+}
+.sim-cal-days footer i.exp {
+  background: var(--up);
+}
+.sim-cal-days footer i.holiday {
+  background: var(--dim);
+}
+.sim-cal-time {
+  display: flex;
+  flex-direction: column;
+  width: 108px;
+  padding: 8px 6px 8px 0;
+  border-left: 1px solid var(--grid);
+}
+.sim-cal-time > b {
+  padding: 4px 0 8px;
+  font-size: 13px;
+  text-align: center;
+}
+.sim-cal-time > div {
+  display: flex;
+  gap: 4px;
+  height: 236px;
+  padding-left: 6px;
+}
+.sim-cal-time ul {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.sim .sim-cal-time li button {
+  width: 100%;
+  height: 26px;
+  font-size: 12px !important;
+  border-radius: 4px;
+}
+.sim .sim-cal-time li button:hover {
+  background: var(--selbg);
+}
+.sim .sim-cal-time li button.on {
+  color: var(--you-fg);
+  background: var(--you);
+}
+.sim .sim-cal-ok {
+  align-self: flex-end;
+  margin-top: 8px;
+  padding: 5px 14px !important;
+  color: var(--you-fg) !important;
+  background: var(--you) !important;
+  border-radius: 4px;
 }
 .sim-error {
   margin: 10px 0 0;
@@ -5807,4 +5958,103 @@ td.oi.pe .sim-trade {
   .sim-body {
     transition: none;
   }
+}
+
+/* Where the chain comes from, when it is not simply the settled history. */
+.sim-source {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--dim);
+  border-bottom: 1px solid var(--grid);
+  overflow: hidden;
+}
+.sim > .sim-source {
+  margin-top: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.sim-source i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--you);
+  transition: width 0.4s ease;
+}
+.sim-stats dd small {
+  font-weight: 400;
+  font-size: 11px;
+}
+
+/* Square off everything at a P&L, and what fills cost. */
+.sim-exitall {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.sim-exitall input {
+  width: 64px;
+  height: 24px;
+}
+.sim-exitall select {
+  height: 24px;
+}
+.sim-exitall.on span {
+  color: var(--you);
+  font-weight: 600;
+}
+.sim-costs {
+  position: relative;
+  font-size: 12px;
+  color: var(--dim);
+}
+.sim-costs summary {
+  cursor: pointer;
+  list-style: none;
+}
+.sim-costs summary::-webkit-details-marker {
+  display: none;
+}
+.sim-costs[open] summary {
+  color: var(--fg);
+}
+.sim-costs > div {
+  position: absolute;
+  z-index: 20;
+  top: 22px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  box-shadow: var(--shadow);
+}
+.sim-costs label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  white-space: nowrap;
+}
+.sim-costs input {
+  width: 64px;
+  height: 24px;
+}
+.sim-squared {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--grid);
+  background: var(--selbg);
 }

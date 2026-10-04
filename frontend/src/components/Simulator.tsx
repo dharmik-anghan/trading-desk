@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { deleteSimSession, getOptbtUnderlyings, getSimMoment, getSimSessions, saveSimSession } from "../api";
-import type { SimMoment, SimSession } from "../api";
+import {
+  deleteSimSession,
+  getSimFetch,
+  getSimMoment,
+  getSimSessions,
+  getSimUnderlyings,
+  saveSimSession,
+} from "../api";
+import type { ExitAll, SimCosts, SimFetch, SimMoment, SimRule, SimSession } from "../api";
 import { BackButton } from "./BackButton";
-import { SimChain } from "./sim/SimChain";
+import { DatePicker } from "./sim/DatePicker";
+import { Loading, SimChain } from "./sim/SimChain";
 import { SimPayoff } from "./sim/SimPayoff";
 import { SimPositions } from "./sim/SimPositions";
 import type { Leg } from "./sim/legs";
@@ -54,6 +62,21 @@ interface Ctx {
   at: string | null;
   expiry: string | null;
   multiplier: number;
+  exitAll: ExitAll;
+  costs: SimCosts;
+}
+
+const NO_RULE: ExitAll = { unit: "rs", stop: null, target: null, base: null };
+
+/** The backtest's defaults: 0.3% slippage, never under a tick; ₹20 an order. */
+const DEFAULT_COSTS: SimCosts = { slippage: 0.003, min_slip: 0.05, brokerage: 20 };
+
+/** The rule in rupees, as the server applies it. */
+function ruleRs(r: ExitAll): SimRule {
+  const rs = (v: number | null) => (v === null ? null : r.unit === "pct" ? ((r.base ?? 0) * v) / 100 : v);
+  const stop = rs(r.stop);
+  const target = rs(r.target);
+  return { stop: stop && stop > 0 ? stop : null, target: target && target > 0 ? target : null };
 }
 
 /**
@@ -68,7 +91,13 @@ export function Simulator({ onHome }: Props) {
   const [moment, setMoment] = useState<SimMoment | null>(null);
   const [legs, setLegs] = useState<Leg[]>([]);
   const [multiplier, setMultiplier] = useState(1);
+  const [exitAll, setExitAllState] = useState<ExitAll>(NO_RULE);
+  const [costs, setCostsState] = useState<SimCosts>(DEFAULT_COSTS);
+  /** The last square-off by the P&L rule, to say so. */
+  const [squared, setSquared] = useState<SimMoment["squared"]>(null);
   const [error, setError] = useState<string | null>(null);
+  /** What the store lacked for the page, being fetched from Fyers. */
+  const [loading, setLoading] = useState<SimFetch | null>(null);
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(0);
@@ -81,10 +110,14 @@ export function Simulator({ onHome }: Props) {
     at: null,
     expiry: null,
     multiplier: 1,
+    exitAll: NO_RULE,
+    costs: DEFAULT_COSTS,
   });
   const legsRef = useRef<Leg[]>([]);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const playRef = useRef(false);
+  /** The request a fetch is standing in for, asked again when it is done. */
+  const retry = useRef<{ at?: string | null; expiry?: string | null } | null>(null);
 
   const putLegs = useCallback((next: Leg[]) => {
     legsRef.current = next;
@@ -98,19 +131,45 @@ export function Simulator({ onHome }: Props) {
         const c = ctx.current;
         setBusy(true);
         try {
-          const m = await getSimMoment({
+          const at = opts.at !== undefined ? opts.at : c.at;
+          const expiry = opts.expiry !== undefined ? opts.expiry : c.expiry;
+          const r = await getSimMoment({
             underlying: c.underlying,
-            at: opts.at !== undefined ? opts.at : c.at,
+            at,
             move: opts.move ?? null,
-            expiry: opts.expiry !== undefined ? opts.expiry : c.expiry,
+            expiry,
             since: c.at,
             multiplier: c.multiplier,
             legs: legsRef.current.map(toIn),
+            rule: ruleRs(c.exitAll),
+            costs: c.costs,
           });
+          setError(null);
+          if (!("at" in r)) {
+            // The day is not in the store yet: it is being fetched. The page
+            // stays where it was and asks again once it is in.
+            retry.current = { at, expiry };
+            setLoading(r.loading);
+            playRef.current = false;
+            setPlaying(false);
+            return null;
+          }
+          const m = r;
           ctx.current = { ...ctx.current, at: m.at, expiry: m.expiry };
           setMoment(m);
           putLegs(merge(legsRef.current, m.legs));
-          setError(null);
+          if (m.loading) {
+            retry.current = {};
+            setLoading(m.loading);
+          }
+          if (m.squared) {
+            // Done its job: left armed, it would close whatever is opened next.
+            setSquared(m.squared);
+            ctx.current = { ...ctx.current, exitAll: { ...ctx.current.exitAll, stop: null, target: null } };
+            setExitAllState(ctx.current.exitAll);
+            playRef.current = false;
+            setPlaying(false);
+          }
           return m;
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e));
@@ -129,11 +188,35 @@ export function Simulator({ onHome }: Props) {
   );
 
   useEffect(() => {
-    void getOptbtUnderlyings()
-      .then((list) => list.length && setUnderlyings(list.map((u) => u.underlying)))
+    void getSimUnderlyings()
+      .then(setUnderlyings)
       .catch(() => undefined);
     void sync();
   }, [sync]);
+
+  // Follow a fetch on the server, and ask for the page again when it is done.
+  const following = loading !== null && loading.state !== "done" && loading.state !== "failed";
+  useEffect(() => {
+    if (!following) return;
+    const timer = window.setInterval(() => {
+      void getSimFetch()
+        .then((f) => {
+          if (!f || f.state === "done") {
+            setLoading(null);
+            const again = retry.current ?? {};
+            retry.current = null;
+            void sync(again);
+          } else if (f.state === "failed") {
+            setLoading(null);
+            setError(`Could not load from Fyers: ${f.error ?? "unknown error"}`);
+          } else {
+            setLoading(f);
+          }
+        })
+        .catch(() => undefined);
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [following, sync]);
 
   // Autoplay: one step, wait, the next - never two in flight.
   useEffect(() => {
@@ -203,6 +286,9 @@ export function Simulator({ onHome }: Props) {
   const reset = () => {
     setPlaying(false);
     setSession(null);
+    setSquared(null);
+    ctx.current = { ...ctx.current, exitAll: NO_RULE };
+    setExitAllState(NO_RULE);
     putLegs([]);
     void sync();
   };
@@ -222,11 +308,16 @@ export function Simulator({ onHome }: Props) {
     setSaved(null);
     setSession({ id: s.id, name: s.name });
     setMultiplier(s.state.multiplier);
+    setExitAllState(s.state.exitAll ?? NO_RULE);
+    setCostsState(s.state.costs ?? DEFAULT_COSTS);
+    setSquared(null);
     ctx.current = {
       underlying: s.underlying,
       at: null,
       expiry: s.state.expiry,
       multiplier: s.state.multiplier,
+      exitAll: s.state.exitAll ?? NO_RULE,
+      costs: s.state.costs ?? DEFAULT_COSTS,
     };
     putLegs(s.state.legs);
     void sync({ at: s.at });
@@ -243,6 +334,8 @@ export function Simulator({ onHome }: Props) {
         legs: legsRef.current.map(toIn),
         expiry: ctx.current.expiry,
         multiplier,
+        exitAll,
+        costs,
       },
     })
       .then((s) => {
@@ -380,17 +473,16 @@ export function Simulator({ onHome }: Props) {
             {label}
           </button>
         ))}
-        <label className="sim-when">
-          <span>{moment ? longDate(moment.at) : "…"}</span>
-          <input
-            type="datetime-local"
-            value={moment?.at.slice(0, 16) ?? ""}
-            min={moment?.first.slice(0, 16)}
-            max={moment?.last.slice(0, 16)}
-            onChange={(e) => e.target.value && void sync({ at: e.target.value })}
-            aria-label="Go to a moment"
+        {moment ? (
+          <DatePicker
+            underlying={ctx.current.underlying}
+            value={moment.at}
+            label={longDate(moment.at)}
+            onPick={(at) => void sync({ at })}
           />
-        </label>
+        ) : (
+          <div className="sim-when">…</div>
+        )}
         {FORWARD.map(([move, label]) => (
           <button
             key={move}
@@ -403,6 +495,7 @@ export function Simulator({ onHome }: Props) {
       </nav>
 
       {error && <p className="sim-error">{error}</p>}
+      {!moment && loading && <Loading fetch={loading} />}
 
       {moment && (
         <div className={`sim-body${busy && !playing ? " busy" : ""}`}>
@@ -414,6 +507,7 @@ export function Simulator({ onHome }: Props) {
               ctx.current = { ...ctx.current, expiry };
               void sync({ expiry });
             }}
+            loading={loading}
           />
           <div className="sim-right">
             <SimPayoff moment={moment} />
@@ -443,6 +537,24 @@ export function Simulator({ onHome }: Props) {
               }}
               onRemove={(id) => edit(legsRef.current.filter((l) => l.id !== id))}
               onToggleAll={(on) => edit(legsRef.current.map((l) => ({ ...l, enabled: on })))}
+              exitAll={exitAll}
+              onExitAll={(r) => {
+                // A percentage is held against the margin when it is set.
+                const next = {
+                  ...r,
+                  base: r.unit === "pct" ? moment.payoff.span + moment.payoff.exposure : null,
+                };
+                ctx.current = { ...ctx.current, exitAll: next };
+                setExitAllState(next);
+                setSquared(null);
+              }}
+              costs={costs}
+              onCosts={(c) => {
+                ctx.current = { ...ctx.current, costs: c };
+                setCostsState(c);
+                void sync();
+              }}
+              squared={squared}
             />
           </div>
         </div>

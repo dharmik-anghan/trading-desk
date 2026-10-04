@@ -25,9 +25,11 @@ from typing import Literal
 from analytics import black_scholes as bs
 from analytics import payoff as pay
 from broker.models import OptionType
+from optbt.costs import CostModel
 from optbt.data.history import ChainQuote, History
 from optbt.data.models import Kind
-from optbt.market import SESSION_OPEN, OptionKey
+from optbt.margin import MarginLeg, estimate
+from optbt.market import SESSION_OPEN, Bar, OptionKey
 from optbt.marks import implied_vol, intrinsic, years_to
 from venues.instruments import INDIA_VIX
 
@@ -232,40 +234,162 @@ class LegState:
     ltp_at: datetime | None = None
     iv: float | None = None
     error: str | None = None
+    #: What the leg costs beyond its premium: charges on its fills and slippage,
+    #: and for an open leg what closing it at its last price would add.
+    charges: float = 0.0
+    slippage: float = 0.0
+
+
+@dataclass(frozen=True)
+class Exit:
+    """The whole position squared off by its P&L stop or target."""
+
+    reason: Literal["portfolio stop", "portfolio target"]
+    at: datetime
+    #: Net P&L when it was hit.
+    net: float
+
+
+@dataclass(frozen=True)
+class Rule:
+    """Square everything off when the net P&L of the included legs reaches these, in rupees."""
+
+    stop: float | None = None
+    target: float | None = None
+
+    @property
+    def active(self) -> bool:
+        return self.stop is not None or self.target is not None
+
+
+def leg_costs(
+    cm: CostModel, leg: SimLeg, qty: int, mark: float | None, today: date
+) -> tuple[float, float]:
+    """Charges and slippage on a leg's fills: its entry, its exit - or, still
+    open, an exit at `mark` today. Slippage is counted as a cost of each fill
+    rather than moving the price shown, so a fill still reads as the market's."""
+    if leg.entry_price is None or qty <= 0:
+        return 0.0, 0.0
+    buy = leg.side == "buy"
+    slip = cm.slip(leg.entry_price) * qty
+    total = cm.fill(leg.entry_at.date(), leg.entry_price, qty, buy=buy).total
+    if leg.exit_at is not None and leg.exit_price is not None:
+        if leg.exit_reason == "expiry":
+            # Settled, not traded: no order and no slippage. A long in the money
+            # is exercised and pays STT on its intrinsic value.
+            if buy and leg.exit_price > 0:
+                total += cm.exercise(leg.exit_at.date(), leg.exit_price, qty).total
+        else:
+            slip += cm.slip(leg.exit_price) * qty
+            total += cm.fill(leg.exit_at.date(), leg.exit_price, qty, buy=not buy).total
+    elif mark is not None:
+        slip += cm.slip(mark) * qty
+        total += cm.fill(today, mark, qty, buy=not buy).total
+    return total + slip, slip
+
+
+def _touch(leg: SimLeg, bar: Bar, ts: datetime) -> SimLeg | None:
+    """The leg closed by its stop or target on this bar, or None.
+
+    The backtest engine's fills: a stop is a market order once touched, filling
+    at its level or at the open of a bar that gapped through it; a target is a
+    limit, filling only on a bar that traded through it. A bar that reached
+    both is taken as the stop.
+    """
+    short = leg.side == "sell"
+    if leg.stop is not None and (bar.high >= leg.stop if short else bar.low <= leg.stop):
+        price = max(leg.stop, bar.open) if short else min(leg.stop, bar.open)
+        return replace(leg, exit_at=ts, exit_price=price, exit_reason="stop")
+    if leg.target is not None and (bar.low < leg.target if short else bar.high > leg.target):
+        price = min(leg.target, bar.open) if short else max(leg.target, bar.open)
+        return replace(leg, exit_at=ts, exit_price=price, exit_reason="target")
+    return None
 
 
 def _scan(clock: Clock, leg: SimLeg, after: datetime, upto: datetime) -> SimLeg:
     """A leg's stop and target against every bar of the contract in (after, upto],
-    then settlement if its expiry closed inside that span.
-
-    The same fills as the backtest engine's: a stop is a market order once
-    touched, filling at its level or at the open of a bar that gapped through
-    it; a target is a limit, filling only on a bar that traded through it. A
-    bar that reached both is taken as the stop.
-    """
+    then settlement if its expiry closed inside that span. See `_touch`."""
     if leg.exit_at is not None or leg.entry_price is None:
         return leg
     h = clock.h
     settles = clock.expiry_close(leg.expiry)
-    short = leg.side == "sell"
     if leg.stop is not None or leg.target is not None:
         days = [d for d in clock.days if after.date() <= d <= upto.date()]
         for d in days:
             for ts, bar in sorted(h.contract_day(leg.key, d).items()):
                 if ts <= after or ts > upto or (settles is not None and ts > settles):
                     continue
-                hit = leg.stop is not None and (
-                    bar.high >= leg.stop if short else bar.low <= leg.stop
-                )
-                if hit and leg.stop is not None:
-                    price = max(leg.stop, bar.open) if short else min(leg.stop, bar.open)
-                    return replace(leg, exit_at=ts, exit_price=price, exit_reason="stop")
-                if leg.target is not None and (
-                    bar.low < leg.target if short else bar.high > leg.target
-                ):
-                    price = min(leg.target, bar.open) if short else max(leg.target, bar.open)
-                    return replace(leg, exit_at=ts, exit_price=price, exit_reason="target")
+                closed = _touch(leg, bar, ts)
+                if closed is not None:
+                    return closed
     return _settle(clock, leg, upto)
+
+
+def _walk(
+    clock: Clock,
+    legs: list[tuple[SimLeg, int]],
+    after: datetime,
+    upto: datetime,
+    rule: Rule,
+    multiplier: int,
+    cm: CostModel,
+) -> tuple[list[SimLeg], Exit | None]:
+    """Minute by minute through (after, upto]: each leg's own stop and target,
+    its expiry, then the whole position's net P&L against `rule`.
+
+    When the rule is met, every included leg still open is closed at its last
+    price that minute - the price the P&L was judged on.
+    """
+    h = clock.h
+    out = [leg for leg, _ in legs]
+    lots = [lot for _, lot in legs]
+    qty = [leg.lots * lot * multiplier for leg, lot in legs]
+    last: list[float | None] = []
+    for leg in out:
+        found = h.price_asof(leg.key, max(after, leg.entry_at))
+        last.append(found[1] if found else leg.entry_price)
+    settles = [clock.expiry_close(leg.expiry) for leg in out]
+    days = [d for d in clock.days if after.date() <= d <= upto.date()]
+    for d in days:
+        bars = [h.contract_day(leg.key, d) for leg in out]
+        for ts in clock.bars(d):
+            if ts <= after or ts > upto:
+                continue
+            for i, leg in enumerate(out):
+                if leg.exit_at is not None or leg.entry_price is None or ts <= leg.entry_at:
+                    continue
+                bar = bars[i].get(ts)
+                if bar is not None:
+                    last[i] = bar.close
+                    closed = _touch(leg, bar, ts)
+                    if closed is not None:
+                        out[i] = closed
+                        continue
+                if settles[i] == ts:
+                    out[i] = _settle(clock, leg, ts)
+            net = 0.0
+            for i, leg in enumerate(out):
+                if not leg.enabled or leg.entry_price is None or ts < leg.entry_at:
+                    continue
+                gone = leg.exit_at is not None and leg.exit_price is not None
+                mark = leg.exit_price if gone else last[i]
+                if mark is None:
+                    continue
+                net += leg.sign * (mark - leg.entry_price) * qty[i]
+                net -= leg_costs(cm, leg, qty[i], None if gone else mark, ts.date())[0]
+            hit: Literal["portfolio stop", "portfolio target"] | None = None
+            if rule.stop is not None and net <= -rule.stop:
+                hit = "portfolio stop"
+            elif rule.target is not None and net >= rule.target:
+                hit = "portfolio target"
+            if hit is not None:
+                for i, leg in enumerate(out):
+                    if leg.enabled and leg.exit_at is None and leg.entry_at < ts:
+                        price = last[i] if last[i] is not None else leg.entry_price
+                        out[i] = replace(leg, exit_at=ts, exit_price=price, exit_reason=hit)
+                return out, Exit(hit, ts, net)
+    del lots
+    return [_settle(clock, leg, upto) for leg in out], None
 
 
 def _settle(clock: Clock, leg: SimLeg, upto: datetime) -> SimLeg:
@@ -282,22 +406,31 @@ def _settle(clock: Clock, leg: SimLeg, upto: datetime) -> SimLeg:
 
 
 def settle_legs(
-    clock: Clock, legs: list[SimLeg], at: datetime, since: datetime | None
-) -> list[LegState]:
+    clock: Clock,
+    legs: list[SimLeg],
+    at: datetime,
+    since: datetime | None,
+    *,
+    multiplier: int = 1,
+    rule: Rule | None = None,
+    costs: CostModel | None = None,
+) -> tuple[list[LegState], Exit | None]:
     """Every leg as of `at`: fills resolved, triggers applied for the span
-    stepped over since `since`, and marked at the moment's prices."""
+    stepped over since `since`, marked at the moment's prices, and costed."""
     h = clock.h
-    out: list[LegState] = []
+    cm = costs or CostModel()
+    resolved: list[tuple[SimLeg, int]] = []
+    errors: dict[str, LegState] = {}
     for leg in legs:
         try:
             lot = h.lot_size(leg.entry_at.date(), leg.expiry)
         except ValueError:
-            out.append(LegState(leg, "error", error="lot size unknown for that day"))
+            errors[leg.id] = LegState(leg, "error", error="lot size unknown for that day")
             continue
         if leg.entry_price is None:
             fill = h.price_asof(leg.key, leg.entry_at)
             if fill is None:
-                out.append(LegState(leg, "error", lot_size=lot, error="no trade to fill at"))
+                errors[leg.id] = LegState(leg, "error", lot_size=lot, error="no trade to fill at")
                 continue
             leg = replace(leg, entry_price=fill[1])
         if leg.exit_at is not None and leg.exit_price is None:
@@ -306,18 +439,40 @@ def settle_legs(
                 leg = replace(leg, exit_price=fill[1], exit_reason=leg.exit_reason or "exit")
             else:
                 leg = replace(leg, exit_at=None, exit_reason=None)
-        # Moving forward tests what was stepped over. A leg already past its
-        # expiry is settled whatever the step, so a jump by date cannot skip it.
-        if since is not None and since < at:
-            leg = _scan(clock, leg, max(since, leg.entry_at), at)
+        resolved.append((leg, lot))
+
+    # Moving forward tests what was stepped over. A leg already past its expiry
+    # is settled whatever the step, so a jump by date cannot skip it.
+    hit: Exit | None = None
+    if since is not None and since < at:
+        if rule is not None and rule.active:
+            walked, hit = _walk(clock, resolved, since, at, rule, multiplier, cm)
+            resolved = [(leg, lot) for leg, (_, lot) in zip(walked, resolved, strict=True)]
         else:
-            leg = _settle(clock, leg, at)
+            resolved = [
+                (_scan(clock, leg, max(since, leg.entry_at), at), lot) for leg, lot in resolved
+            ]
+    else:
+        resolved = [(_settle(clock, leg, at), lot) for leg, lot in resolved]
+
+    by_id = {leg.id: (leg, lot) for leg, lot in resolved}
+    out: list[LegState] = []
+    for original in legs:
+        if original.id in errors:
+            out.append(errors[original.id])
+            continue
+        leg, lot = by_id[original.id]
         if leg.exit_at is not None and leg.exit_at <= at:
             state = LegState(leg, "closed", lot, ltp=leg.exit_price, ltp_at=leg.exit_at)
         else:
             state = _marked(h, LegState(leg, "pending" if at < leg.entry_at else "open", lot), at)
+        if state.status != "pending":
+            qty = leg.lots * lot * multiplier
+            mark = None if state.status == "closed" else state.ltp
+            charges, slip = leg_costs(cm, leg, qty, mark, at.date())
+            state = replace(state, charges=charges, slippage=slip)
         out.append(state)
-    return out
+    return out, hit
 
 
 def _marked(h: History, state: LegState, at: datetime) -> LegState:
@@ -355,6 +510,20 @@ class Payoff:
     pop: float | None
     #: Spot at -2, -1, +1, +2 standard deviations by the nearest expiry.
     sd: list[float] = field(default_factory=list)
+    #: Margin the open legs would need today, by NSE's rules: see optbt/margin.py.
+    span: float = 0.0
+    exposure: float = 0.0
+    #: Charges and slippage of the included legs, an open one's exit included;
+    #: `pnl` less these is `net`. The curves and limits are net of them.
+    charges: float = 0.0
+
+    @property
+    def net(self) -> float:
+        return self.pnl - self.charges
+
+
+#: Either side of spot, the span drawn for a position with nothing left open.
+CLOSED_RANGE = 0.05
 
 
 def _norm_cdf(x: float) -> float:
@@ -381,8 +550,38 @@ def payoff(
         * s.leg.lots * (s.lot_size or 0) * multiplier
         for s in open_
     )
+    charges = sum(s.charges for s in live)
+    # The curves are net: what was booked, less every cost the legs carry.
+    booked = realised - charges
     if not open_:
-        return Payoff(pnl, realised, [], [], realised, realised, False, False, [], None)
+        if not live:
+            return Payoff(pnl, realised, [], [], 0.0, 0.0, False, False, [], None)
+        # All of it booked: whatever the market does now, the result is the same,
+        # so the payoff is flat at what was booked.
+        flat = [(spot * (1 - CLOSED_RANGE), booked), (spot * (1 + CLOSED_RANGE), booked)]
+        settled = 1.0 if booked > 0 else 0.0
+        return Payoff(
+            pnl, realised, flat, flat, booked, booked, False, False, [], settled, charges=charges
+        )
+
+    margin = estimate(
+        [
+            MarginLeg(
+                option_type=_ot(s.leg.kind),
+                strike=s.leg.strike,
+                expiry=s.leg.expiry,
+                side=s.leg.sign,
+                quantity=s.leg.lots * (s.lot_size or 0) * multiplier,
+                price=s.ltp if s.ltp is not None else (s.leg.entry_price or 0.0),
+                iv=s.iv,
+            )
+            for s in open_
+        ],
+        spot,
+        at.date(),
+        {e: max(years_to(e, _decision(at)), 0.0) for e in {s.leg.expiry for s in open_}},
+        atm_iv or 0.15,
+    )
 
     now = _decision(at)
     nearest = min(s.leg.expiry for s in open_)
@@ -415,7 +614,7 @@ def payoff(
     def curve(at_expiry: bool) -> list[tuple[float, float]]:
         pts = []
         for x in grid:
-            total = realised
+            total = booked
             for s in open_:
                 if at_expiry:
                     # A later expiry's leg is still worth its time value then.
@@ -443,7 +642,7 @@ def payoff(
             )
             for s in open_
         ]
-        r = pay.analyze(legs, realised)
+        r = pay.analyze(legs, booked)
         max_profit = None if math.isinf(r.max_profit) else r.max_profit
         max_loss = None if math.isinf(r.max_loss) else r.max_loss
         p_unl, l_unl = math.isinf(r.max_profit), math.isinf(r.max_loss)
@@ -475,7 +674,7 @@ def payoff(
 
     return Payoff(
         pnl, realised, expiry_curve, today_curve, max_profit, max_loss, p_unl, l_unl,
-        breakevens, pop, sd,
+        breakevens, pop, sd, margin.span, margin.exposure, charges,
     )
 
 
@@ -497,6 +696,10 @@ class Expiry:
     expiry: date
     days: int
     monthly: bool
+    #: "held" (settled, whole), "live" (fetched while trading), "missing".
+    status: str = "held"
+    #: For a live one, the last bar fetched.
+    through: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -516,6 +719,8 @@ class Moment:
     atm_iv: float | None
     legs: list[LegState]
     payoff: Payoff
+    #: The whole position squared off by its P&L rule on the way here, if it was.
+    squared: Exit | None = None
 
 
 def moment(
@@ -526,6 +731,8 @@ def moment(
     legs: list[SimLeg],
     since: datetime | None,
     multiplier: int = 1,
+    rule: Rule | None = None,
+    costs: CostModel | None = None,
 ) -> Moment:
     h = clock.h
     at = clock.move(at, move) if (at is not None and move) else clock.snap(at)
@@ -533,7 +740,11 @@ def moment(
     assert spot is not None
     monthlies = set(h.monthly_expiries())
     listed = [e for e in h.expiries() if e >= at.date()][:EXPIRIES_SHOWN]
-    expiries = [Expiry(e, (e - at.date()).days, e in monthlies) for e in listed]
+    status = h.expiry_status(listed)
+    expiries = [
+        Expiry(e, (e - at.date()).days, e in monthlies, *status.get(e, ("missing", None)))
+        for e in listed
+    ]
     chosen = expiry if expiry in listed else (listed[0] if listed else None)
     rows: list[ChainRow] = []
     forward = atm = atm_iv = None
@@ -545,7 +756,9 @@ def moment(
             lot = h.lot_size(at.date(), chosen)
         except ValueError:
             lot = None
-    states = settle_legs(clock, legs, at, since)
+    states, squared = settle_legs(
+        clock, legs, at, since, multiplier=multiplier, rule=rule, costs=costs
+    )
     # The payoff's spread of outcomes is read at the nearest open leg's expiry.
     near_iv = atm_iv
     open_exp = [s.leg.expiry for s in states if s.status == "open" and s.leg.enabled]
@@ -572,4 +785,5 @@ def moment(
         atm_iv=atm_iv,
         legs=states,
         payoff=payoff(states, at, spot, near_iv or (vix / 100 if vix else None), multiplier),
+        squared=squared,
     )

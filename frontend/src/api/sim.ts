@@ -26,6 +26,9 @@ export interface SimLeg extends SimLegIn {
   ltp_at: string | null;
   iv: number | null;
   error: string | null;
+  /** Charges and slippage, an open leg's exit at its last price included. */
+  charges: number;
+  slippage: number;
 }
 
 export interface SimSide {
@@ -56,6 +59,12 @@ export interface SimPayoff {
   pop: number | null;
   /** Spot at -2, -1, +1, +2 standard deviations by the nearest expiry. */
   sd: number[];
+  /** Margin today's rules would ask for the open legs: SPAN and exposure. */
+  span: number;
+  exposure: number;
+  /** Charges and slippage of the included legs; `net` is `pnl` less them. */
+  charges: number;
+  net: number;
 }
 
 export interface SimMoment {
@@ -66,7 +75,7 @@ export interface SimMoment {
   vix: number | null;
   future_expiry: string | null;
   future: number | null;
-  expiries: { expiry: string; days: number; monthly: boolean }[];
+  expiries: SimExpiry[];
   expiry: string | null;
   lot_size: number | null;
   atm: number | null;
@@ -74,6 +83,69 @@ export interface SimMoment {
   rows: SimRow[];
   legs: SimLeg[];
   payoff: SimPayoff;
+  /** What is being fetched for this moment, if anything. */
+  loading: SimFetch | null;
+  /** The whole position squared off by its P&L rule on the way here. */
+  squared: { reason: "portfolio stop" | "portfolio target"; at: string; net: number } | null;
+}
+
+/** Square everything off at this net P&L, in rupees. */
+export interface SimRule {
+  stop: number | null;
+  target: number | null;
+}
+
+/** Slippage as a fraction of premium with a rupee floor; brokerage per order. */
+export interface SimCosts {
+  slippage: number;
+  min_slip: number;
+  brokerage: number;
+}
+
+export interface SimExpiry {
+  expiry: string;
+  days: number;
+  monthly: boolean;
+}
+
+/** What the store lacked, being fetched from Fyers: a day's session, or an expiry. */
+export interface SimFetch {
+  underlying: string;
+  day: string;
+  expiry: string | null;
+  state: "index" | "listing" | "fetching" | "done" | "failed";
+  total: number;
+  done: number;
+  bars: number;
+  failed: number;
+  error: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+/** No moment yet: the day it asked for is being fetched. */
+export interface SimLoading {
+  loading: SimFetch;
+}
+
+/** A month as the store knows it: sessions held, expiries listed, and the span held. */
+export interface SimMonth {
+  sessions: string[];
+  expiries: string[];
+  first: string | null;
+  last: string | null;
+}
+
+export function getSimCalendar(underlying: string, month: string): Promise<SimMonth> {
+  return getJson<SimMonth>(`/api/sim/calendar?underlying=${encodeURIComponent(underlying)}&month=${month}`);
+}
+
+export function getSimUnderlyings(): Promise<string[]> {
+  return getJson<string[]>("/api/sim/underlyings");
+}
+
+export function getSimFetch(): Promise<SimFetch | null> {
+  return getJson<SimFetch | null>("/api/sim/fetch");
 }
 
 export interface SimMomentRequest {
@@ -86,6 +158,8 @@ export interface SimMomentRequest {
   since: string | null;
   multiplier: number;
   legs: SimLegIn[];
+  rule: SimRule;
+  costs: SimCosts;
 }
 
 export interface SimSession {
@@ -102,10 +176,22 @@ export interface SimState {
   legs: SimLegIn[];
   expiry: string | null;
   multiplier: number;
+  /** The P&L rule as the page holds it, and the costs. Missing in older saves. */
+  exitAll?: ExitAll;
+  costs?: SimCosts;
 }
 
-export function getSimMoment(request: SimMomentRequest): Promise<SimMoment> {
-  return postJson<SimMomentRequest, SimMoment>("/api/sim/moment", request);
+/** The P&L rule as set: in rupees, or in percent of the margin when it was set. */
+export interface ExitAll {
+  unit: "rs" | "pct";
+  stop: number | null;
+  target: number | null;
+  /** The margin a percentage was set against. */
+  base: number | null;
+}
+
+export function getSimMoment(request: SimMomentRequest): Promise<SimMoment | SimLoading> {
+  return postJson<SimMomentRequest, SimMoment | SimLoading>("/api/sim/moment", request);
 }
 
 export function getSimSessions(): Promise<SimSession[]> {

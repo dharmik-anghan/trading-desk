@@ -63,6 +63,8 @@ export function merge(local: Leg[], server: SimLeg[]): Leg[] {
       ltp_at: s.ltp_at,
       iv: s.iv,
       error: s.error,
+      charges: s.charges,
+      slippage: s.slippage,
     };
   });
 }
@@ -75,6 +77,12 @@ export function legPnl(leg: Leg, multiplier: number): number | null {
   if (mark === null || mark === undefined) return null;
   const sign = leg.side === "buy" ? 1 : -1;
   return sign * (mark - leg.entry_price) * leg.lots * leg.lot_size * multiplier;
+}
+
+/** What the leg has made after its charges and slippage. */
+export function legNet(leg: Leg, multiplier: number): number | null {
+  const gross = legPnl(leg, multiplier);
+  return gross === null ? null : gross - (leg.charges ?? 0);
 }
 
 /** A level as a percent of the entry, against the position: up for a short's stop. */
