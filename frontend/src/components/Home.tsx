@@ -166,7 +166,7 @@ function Ticker() {
     .map((r) => {
       const q = quotes.data?.[r.id];
       if (!q) return null;
-      const change = q.prev_close ? ((q.ltp - q.prev_close) / q.prev_close) * 100 : 0;
+      const change = q.prev_close ? (q.ltp - q.prev_close) / q.prev_close : 0;
       return { name: r.name as string, ltp: q.ltp, change };
     })
     .filter((x) => x !== null);

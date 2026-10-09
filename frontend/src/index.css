@@ -14,13 +14,14 @@
    reads as a number without needing size or weight to shout.
    ============================================================ */
 :root {
-  --bg: #ede9e3;
-  --panel: #fbfaf8;
-  --head: #e4dfd7;
-  --grid: #e8e4dd;
-  --line: #cfc8bd;
-  --fg: #1b1f24;
-  --dim: #5c5f67;
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --head: #f7f8fa;
+  --raise: #eef0f3;
+  --grid: #eceef1;
+  --line: #dcdfe4;
+  --fg: #15181d;
+  --dim: #5d6470;
   --you: #5b4bd6;
   --you-fg: #ffffff;
   --sell: #b02a50;
@@ -30,12 +31,38 @@
   --dn: #ae2835;
   --selbg: rgba(91, 75, 214, 0.1);
   --atm: rgba(128, 87, 6, 0.1);
-  --itm: rgba(27, 31, 36, 0.055);
+  --itm: rgba(21, 24, 29, 0.05);
   --fu: rgba(10, 107, 69, 0.22);
   --fd: rgba(174, 40, 53, 0.2);
-  --oibar: rgba(27, 31, 36, 0.1);
+  --oibar: rgba(21, 24, 29, 0.1);
   --band: rgba(128, 87, 6, 0.1);
-  --shadow: 0 14px 44px rgba(27, 31, 36, 0.22);
+  /* Overlays only: popovers, dialogs, the fills tray. Panels use hairlines. */
+  --shadow: 0 12px 32px rgba(21, 24, 29, 0.16);
+  /* Indicator lines on a trade chart. Five hues that stay apart in both themes
+     and none of which is the up/down pair. */
+  --i0: #5b4bd6;
+  --i1: #b8860b;
+  --i2: #0f7b8a;
+  --i3: #a0439b;
+  --i4: #6b7280;
+
+  /* scales */
+  --s1: 2px;
+  --s2: 4px;
+  --s3: 6px;
+  --s4: 8px;
+  --s5: 12px;
+  --s6: 16px;
+  --r: 2px;
+  --r-lg: 4px;
+  --fs-xs: 10.5px;
+  --fs-sm: 11.5px;
+  --fs-md: 12px;
+  --fs-lg: 14px;
+  --fs-xl: 20px;
+  --h-sm: 20px;
+  --h-md: 24px;
+
   --u: "Archivo Narrow", "Arial Narrow", system-ui, sans-serif;
   --n: "Archivo", system-ui, sans-serif;
   color-scheme: light;
@@ -43,13 +70,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e141b;
-    --panel: #151d26;
-    --head: #1c2734;
-    --grid: #1e2a38;
-    --line: #2c3b4d;
-    --fg: #dce5ee;
-    --dim: #7e90a4;
+    --bg: #0b0d10;
+    --panel: #111418;
+    --head: #14181d;
+    --raise: #1a1f26;
+    --grid: #1a1e24;
+    --line: #252b33;
+    --fg: #e4e8ee;
+    --dim: #8a93a0;
     --you: #9a8cf5;
     --you-fg: #12101f;
     --sell: #e86a8a;
@@ -62,21 +90,27 @@
     --itm: rgba(255, 255, 255, 0.035);
     --fu: rgba(49, 196, 141, 0.32);
     --fd: rgba(242, 109, 120, 0.3);
-    --oibar: rgba(220, 229, 238, 0.11);
+    --oibar: rgba(228, 232, 238, 0.11);
     --band: rgba(217, 164, 65, 0.09);
-    --shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+    --shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    --i0: #9a8cf5;
+    --i1: #d9a441;
+    --i2: #5ec4d4;
+    --i3: #d98cd0;
+    --i4: #9aa7b8;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0e141b;
-  --panel: #151d26;
-  --head: #1c2734;
-  --grid: #1e2a38;
-  --line: #2c3b4d;
-  --fg: #dce5ee;
-  --dim: #7e90a4;
+  --bg: #0b0d10;
+  --panel: #111418;
+  --head: #14181d;
+  --raise: #1a1f26;
+  --grid: #1a1e24;
+  --line: #252b33;
+  --fg: #e4e8ee;
+  --dim: #8a93a0;
   --you: #9a8cf5;
   --you-fg: #12101f;
   --sell: #e86a8a;
@@ -89,9 +123,14 @@
   --itm: rgba(255, 255, 255, 0.035);
   --fu: rgba(49, 196, 141, 0.32);
   --fd: rgba(242, 109, 120, 0.3);
-  --oibar: rgba(220, 229, 238, 0.11);
+  --oibar: rgba(228, 232, 238, 0.11);
   --band: rgba(217, 164, 65, 0.09);
-  --shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --i0: #9a8cf5;
+  --i1: #d9a441;
+  --i2: #5ec4d4;
+  --i3: #d98cd0;
+  --i4: #9aa7b8;
   color-scheme: dark;
 }
 
@@ -111,7 +150,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 12px/1.35 var(--u);
+  font: var(--fs-md)/1.35 var(--u);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -126,7 +165,12 @@ textarea {
 :focus-visible {
   outline: 2px solid var(--you);
   outline-offset: 1px;
-  border-radius: 2px;
+  border-radius: var(--r);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 
 /* values wide + tabular, labels narrow — see the type law above */

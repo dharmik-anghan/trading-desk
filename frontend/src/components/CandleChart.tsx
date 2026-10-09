@@ -98,18 +98,18 @@ function palette() {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
   return {
-    panel: v("--panel", "#fbfaf8"),
-    grid: v("--grid", "#e8e4dd"),
-    line: v("--line", "#cfc8bd"),
-    fg: v("--fg", "#1b1f24"),
-    dim: v("--dim", "#5c5f67"),
+    panel: v("--panel", "#ffffff"),
+    grid: v("--grid", "#eceef1"),
+    line: v("--line", "#dcdfe4"),
+    fg: v("--fg", "#15181d"),
+    dim: v("--dim", "#5d6470"),
     you: v("--you", "#5b4bd6"),
     mkt: v("--mkt", "#805706"),
     up: v("--up", "#0a6b45"),
     // Candles take the desk's own ink, not the P&L pair: up in the accent,
     // down in the quiet grey. Green and red stay for money.
     rise: v("--you", "#5b4bd6"),
-    fall: v("--dim", "#5c5f67"),
+    fall: v("--dim", "#5d6470"),
     dn: v("--dn", "#ae2835"),
     held: v("--selbg", "rgba(91, 75, 214, 0.1)"),
     font: v("--n", "system-ui, sans-serif"),
