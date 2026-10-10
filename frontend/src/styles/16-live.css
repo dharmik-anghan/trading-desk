@@ -3,13 +3,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
   margin: 0 0 10px;
 }
 .lb-templates button {
-  height: 26px;
-  padding: 0 10px;
-  font: 12px var(--n);
+  height: var(--h-md);
+  padding: 0 var(--s4);
+  font-family: var(--n);
+  font-size: var(--fs-md);
   color: var(--dim);
   background: transparent;
   border: 1px solid var(--line);
@@ -21,8 +22,9 @@
   border-color: var(--you);
 }
 .lb-templates select {
-  height: 26px;
-  font: 12px var(--n);
+  height: var(--h-md);
+  font-family: var(--n);
+  font-size: var(--fs-md);
 }
 .lb-draft {
   background: var(--panel);
@@ -34,8 +36,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  padding: 8px 12px;
+  gap: var(--s4) var(--s6);
+  padding: var(--s4) var(--s5);
 }
 .lb-draft header {
   border-bottom: 1px solid var(--grid);
@@ -43,22 +45,22 @@
 .lb-draft footer {
   justify-content: flex-end;
   border-top: 1px solid var(--grid);
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .lb-draft h3 {
   margin: 0;
   font: 600 14px var(--n);
 }
 .lb-draft .sim-empty {
-  padding: 10px 12px;
+  padding: var(--s4) var(--s5);
 }
 .lb-legs {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .lb-legs td {
-  padding: 5px 8px;
+  padding: var(--s2) var(--s4);
   border-bottom: 1px solid var(--grid);
   white-space: nowrap;
 }
@@ -68,14 +70,14 @@
 }
 .lb-legs small {
   display: block;
-  font-size: 10px;
+  font-size: var(--fs-xs);
 }
 .lb-legs tr.err {
   opacity: 0.75;
 }
 .lb-lv,
 .lb-rule {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .lb-sum {
@@ -93,7 +95,7 @@
   color: var(--you-fg);
 }
 .lb-livebadge {
-  padding: 1px 6px;
+  padding: 1px var(--s3);
   font: 600 10px var(--n);
   letter-spacing: 0.06em;
   color: var(--you-fg);
@@ -104,9 +106,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 14px;
-  padding: 8px 12px;
-  font-size: 12px;
+  gap: var(--s3) var(--s5);
+  padding: var(--s4) var(--s5);
+  font-size: var(--fs-md);
   background: var(--panel);
   border: 1px solid color-mix(in srgb, var(--dn) 40%, var(--line));
   border-radius: var(--r);
@@ -114,9 +116,9 @@
 .lb-ask ul {
   margin: 0 0 8px;
   padding-left: 18px;
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 .lb-ask p {
   margin: 4px 0;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
