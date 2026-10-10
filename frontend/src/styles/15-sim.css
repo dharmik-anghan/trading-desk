@@ -16,27 +16,27 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
+  gap: var(--s4) var(--s5);
 }
 .sim-top h1 {
   margin: 0;
   font: 600 20px var(--n);
 }
 .sim-top > select {
-  height: 30px;
+  height: var(--h-md);
 }
 .sim-files {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
 }
 .sim-files > button,
 .sim-saved > button,
 .sim-save button,
 .sim-play button {
-  height: 30px;
-  padding: 0 12px;
+  height: var(--h-md);
+  padding: 0 var(--s5);
   color: var(--fg);
   background: var(--panel);
   border: 1px solid var(--line);
@@ -57,15 +57,15 @@
 }
 .sim-name {
   color: var(--dim);
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .sim-save {
   display: flex;
-  gap: 6px;
+  gap: var(--s3);
 }
 .sim-save input {
   width: 180px;
-  height: 30px;
+  height: var(--h-md);
 }
 .sim-saved {
   position: relative;
@@ -79,7 +79,7 @@
   max-height: 360px;
   overflow: auto;
   margin: 0;
-  padding: 4px;
+  padding: var(--s2);
   list-style: none;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -91,9 +91,9 @@
   align-items: center;
 }
 .sim-saved li.dim {
-  padding: 8px;
+  padding: var(--s4);
   color: var(--dim);
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .sim-saved li button {
   flex: 1;
@@ -101,7 +101,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  padding: 6px 8px;
+  padding: var(--s3) var(--s4);
   color: var(--fg);
   text-align: left;
   background: none;
@@ -111,19 +111,19 @@
 }
 .sim-saved li button span {
   color: var(--dim);
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 .sim-saved li button:hover {
   background: var(--selbg);
 }
 .sim-saved li button.x {
   flex: 0;
-  padding: 6px 10px;
+  padding: var(--s3) var(--s4);
   color: var(--dim);
 }
 .sim-play {
   display: flex;
-  gap: 6px;
+  gap: var(--s3);
   margin-left: auto;
 }
 .sim-play button.on {
@@ -132,7 +132,7 @@
   border-color: var(--you);
 }
 .sim-play select {
-  height: 30px;
+  height: var(--h-md);
 }
 
 .sim-time {
@@ -173,7 +173,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--s4);
   font: 600 13px var(--n);
   border-right: none;
 }
@@ -206,22 +206,22 @@
 }
 .sim-cal-days {
   width: 270px;
-  padding: 8px 10px 6px;
+  padding: var(--s4) var(--s4) var(--s3);
 }
 .sim-cal-days header {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s2);
   margin-bottom: 6px;
 }
 .sim-cal-days header b {
   flex: 1;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 .sim .sim-cal-days header button {
   width: 24px;
-  height: 24px;
+  height: var(--h-md);
   color: var(--dim);
   font-size: 14px !important;
 }
@@ -231,8 +231,8 @@
   gap: 2px;
 }
 .sim-cal-grid .wk {
-  padding: 4px 0;
-  font-size: 11px;
+  padding: var(--s2) 0;
+  font-size: var(--fs-sm);
   text-align: center;
   color: var(--dim);
 }
@@ -266,10 +266,10 @@
 .sim-cal-days footer {
   display: flex;
   justify-content: center;
-  gap: 16px;
+  gap: var(--s6);
   margin-top: 6px;
-  padding-top: 6px;
-  font-size: 11px;
+  padding-top: var(--s3);
+  font-size: var(--fs-sm);
   color: var(--dim);
   border-top: 1px solid var(--grid);
 }
@@ -290,19 +290,19 @@
   display: flex;
   flex-direction: column;
   width: 108px;
-  padding: 8px 6px 8px 0;
+  padding: var(--s4) var(--s3) var(--s4) 0;
   border-left: 1px solid var(--grid);
 }
 .sim-cal-time > b {
-  padding: 4px 0 8px;
-  font-size: 13px;
+  padding: var(--s2) 0 var(--s4);
+  font-size: var(--fs-lg);
   text-align: center;
 }
 .sim-cal-time > div {
   display: flex;
-  gap: 4px;
+  gap: var(--s2);
   height: 236px;
-  padding-left: 6px;
+  padding-left: var(--s3);
 }
 .sim-cal-time ul {
   flex: 1;
@@ -313,7 +313,7 @@
 }
 .sim .sim-cal-time li button {
   width: 100%;
-  height: 26px;
+  height: var(--h-md);
   font-size: 12px !important;
   border-radius: var(--r);
 }
@@ -327,7 +327,7 @@
 .sim .sim-cal-ok {
   align-self: flex-end;
   margin-top: 8px;
-  padding: 5px 14px !important;
+  padding: var(--s2) var(--s5) !important;
   color: var(--you-fg) !important;
   background: var(--you) !important;
   border-radius: var(--r);
@@ -335,18 +335,18 @@
 .sim-error {
   margin: 10px 0 0;
   color: var(--dn);
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 .sim-empty {
   margin: 18px 12px;
   color: var(--dim);
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 
 .sim-body {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 12px;
+  gap: var(--s5);
   margin-top: 12px;
   transition: opacity 0.15s ease;
 }
@@ -370,9 +370,9 @@
 .sim-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 18px;
-  padding: 10px 12px;
-  font-size: 12px;
+  gap: var(--s3) 18px;
+  padding: var(--s4) var(--s5);
+  font-size: var(--fs-md);
   color: var(--dim);
   border-bottom: 1px solid var(--grid);
 }
@@ -382,8 +382,8 @@
 }
 .sim-expiries {
   display: flex;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5);
   overflow-x: auto;
   white-space: nowrap;
   border-bottom: 1px solid var(--grid);
@@ -393,8 +393,8 @@
 }
 .sim-expiries button,
 .sim-expiries select {
-  height: 28px;
-  padding: 0 10px;
+  height: var(--h-md);
+  padding: 0 var(--s4);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -416,13 +416,13 @@
 .sim-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .sim-table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
-  padding: 7px 8px;
+  padding: var(--s3) var(--s4);
   font-weight: 500;
   color: var(--dim);
   text-align: left;
@@ -438,7 +438,7 @@
   text-align: center;
 }
 .sim-table td {
-  padding: 5px 8px;
+  padding: var(--s2) var(--s4);
   border-bottom: 1px solid var(--grid);
   white-space: nowrap;
 }
@@ -483,7 +483,7 @@
 .sim-oi em {
   position: relative;
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .sim-oi.ce em {
@@ -496,7 +496,7 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s2);
 }
 td.oi.ce .sim-trade {
   left: 6px;
@@ -505,8 +505,8 @@ td.oi.pe .sim-trade {
   right: 6px;
 }
 .sim-held {
-  padding: 0 5px;
-  font-size: 11px;
+  padding: 0 var(--s2);
+  font-size: var(--fs-sm);
   font-weight: 600;
   border-radius: var(--r);
   border: 1px solid currentColor;
@@ -557,7 +557,7 @@ td.oi.pe .sim-trade {
 .sim-right {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--s5);
   min-width: 0;
 }
 .sim-payoff {
@@ -569,19 +569,19 @@ td.oi.pe .sim-trade {
   border-right: 1px solid var(--grid);
 }
 .sim-stats div {
-  padding: 8px 12px;
+  padding: var(--s4) var(--s5);
   border-bottom: 1px solid var(--grid);
 }
 .sim-stats div:last-child {
   border-bottom: none;
 }
 .sim-stats dt {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .sim-stats dd {
   margin: 3px 0 0;
-  font-size: 14px;
+  font-size: var(--fs-lg);
   font-weight: 600;
 }
 .sim .up {
@@ -595,14 +595,14 @@ td.oi.pe .sim-trade {
 }
 .sim-chart {
   min-width: 0;
-  padding: 8px 8px 4px;
+  padding: var(--s4) var(--s4) var(--s2);
 }
 .sim-pos header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 18px;
-  padding: 8px 12px;
+  gap: var(--s4) 18px;
+  padding: var(--s4) var(--s5);
   border-bottom: 1px solid var(--grid);
 }
 .sim-pos h3 {
@@ -612,13 +612,13 @@ td.oi.pe .sim-trade {
 .sim-mult {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: var(--s2);
+  font-size: var(--fs-md);
   color: var(--dim);
 }
 .sim-mult button {
   width: 24px;
-  height: 24px;
+  height: var(--h-md);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -627,16 +627,16 @@ td.oi.pe .sim-trade {
 }
 .sim-mult input {
   width: 44px;
-  height: 24px;
+  height: var(--h-md);
   text-align: center;
 }
 .sim-qty {
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--dim);
 }
 .sim-total {
   margin-left: auto;
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 .sim-legs {
   overflow-x: auto;
@@ -644,17 +644,17 @@ td.oi.pe .sim-trade {
 .sim-legs table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .sim-legs th {
-  padding: 6px 8px;
+  padding: var(--s3) var(--s4);
   font-weight: 500;
   color: var(--dim);
   text-align: left;
   border-bottom: 1px solid var(--grid);
 }
 .sim-legs td {
-  padding: 5px 8px;
+  padding: var(--s2) var(--s4);
   border-bottom: 1px solid var(--grid);
   white-space: nowrap;
 }
@@ -663,7 +663,7 @@ td.oi.pe .sim-trade {
 }
 .sim-legs small {
   display: block;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 .sim-legs tr.closed td,
@@ -676,7 +676,7 @@ td.oi.pe .sim-trade {
 }
 .sim-side {
   width: 22px;
-  height: 22px;
+  height: var(--h-sm);
   padding: 0;
   font-weight: 600;
   background: none;
@@ -700,7 +700,7 @@ td.oi.pe .sim-trade {
 .sim-strike {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s2);
 }
 .sim-strike span {
   min-width: 46px;
@@ -708,8 +708,8 @@ td.oi.pe .sim-trade {
 }
 .sim-strike button,
 .sim-acts button {
-  height: 22px;
-  padding: 0 7px;
+  height: var(--h-sm);
+  padding: 0 var(--s3);
   color: var(--dim);
   background: none;
   border: 1px solid var(--line);
@@ -722,8 +722,8 @@ td.oi.pe .sim-trade {
   border-color: var(--you);
 }
 .sim-kind {
-  padding: 1px 5px;
-  font-size: 11px;
+  padding: 1px var(--s2);
+  font-size: var(--fs-sm);
   border-radius: var(--r);
   border: 1px solid currentColor;
 }
@@ -735,14 +735,14 @@ td.oi.pe .sim-trade {
 }
 .sim-levels {
   display: flex;
-  gap: 4px;
+  gap: var(--s2);
 }
 .sim-levels input {
   width: 50px;
 }
 .sim-acts {
   display: flex;
-  gap: 4px;
+  gap: var(--s2);
   justify-content: flex-end;
 }
 
@@ -794,9 +794,9 @@ td.oi.pe .sim-trade {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
-  padding: 7px 12px;
-  font-size: 12px;
+  gap: var(--s3) var(--s5);
+  padding: var(--s3) var(--s5);
+  font-size: var(--fs-md);
   color: var(--dim);
   border-bottom: 1px solid var(--grid);
   overflow: hidden;
@@ -817,23 +817,23 @@ td.oi.pe .sim-trade {
 }
 .sim-stats dd small {
   font-weight: 400;
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 
 /* Square off everything at a P&L, and what fills cost. */
 .sim-exitall {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: var(--s2);
+  font-size: var(--fs-md);
   color: var(--dim);
 }
 .sim-exitall input {
   width: 64px;
-  height: 24px;
+  height: var(--h-md);
 }
 .sim-exitall select {
-  height: 24px;
+  height: var(--h-md);
 }
 .sim-exitall.on span {
   color: var(--you);
@@ -841,7 +841,7 @@ td.oi.pe .sim-trade {
 }
 .sim-costs {
   position: relative;
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--dim);
 }
 .sim-costs summary {
@@ -861,8 +861,8 @@ td.oi.pe .sim-trade {
   left: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -872,25 +872,25 @@ td.oi.pe .sim-trade {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--s4);
   white-space: nowrap;
 }
 .sim-costs input {
   width: 64px;
-  height: 24px;
+  height: var(--h-md);
 }
 .sim-squared {
   margin: 0;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: var(--s3) var(--s5);
+  font-size: var(--fs-md);
   border-bottom: 1px solid var(--grid);
   background: var(--selbg);
 }
 
 /* ---- Simulator, live: Shark's chain, paper traded now ---- */
 .sim-live {
-  padding: 2px 8px;
-  font-size: 11px;
+  padding: 2px var(--s4);
+  font-size: var(--fs-sm);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dn);
@@ -904,27 +904,27 @@ td.oi.pe .sim-trade {
   content: "● ";
 }
 .sim-asof {
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 .sim-ba {
   display: block;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .sim-session {
-  height: 24px;
+  height: var(--h-md);
   max-width: 180px;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .sim-new,
 .sim-exitnow {
-  height: 24px;
-  padding: 0 8px;
-  font-size: 12px;
+  height: var(--h-md);
+  padding: 0 var(--s4);
+  font-size: var(--fs-md);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--line);
