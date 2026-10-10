@@ -277,10 +277,19 @@
     grid-template-rows: none;
     grid-template-areas:
       "tb tb"
+      "middle middle"
       "baskets baskets"
-      "alerts alerts"
       "chain chain"
       "left left";
+  }
+  .ws.perps {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "tb tb" "middle middle" "left left";
+  }
+  /* Stacked, the page scrolls instead of the chart filling the screen, so it
+     needs a height of its own. */
+  .ws .a-structure {
+    min-height: 460px;
   }
   #left {
     flex-direction: row;
@@ -296,7 +305,21 @@
 @media (max-width: 820px) {
   .ws {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "tb" "baskets" "alerts" "chain" "left";
+    grid-template-areas: "tb" "middle" "baskets" "chain" "left";
+  }
+  .ws.perps {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "tb" "middle" "left";
+  }
+  .ws .a-structure {
+    min-height: 380px;
+  }
+  #left {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+  #left > .panel {
+    flex: none;
   }
   .tbk {
     border-left: 0;
