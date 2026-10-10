@@ -52,6 +52,11 @@ class SpecRule:
 
         long = side is Side.LONG
         stop = spec.stop.price(view, entry, long) if spec.stop else None
+        # A stop was asked for but cannot be worked out - an ATR still warming up,
+        # a swing too wide. Trading without it would be a different strategy with
+        # unlimited risk, so the setup is skipped.
+        if spec.stop is not None and stop is None:
+            return Intent.nothing()
         # A stop on the wrong side of the entry would close the position the
         # instant it opened - which is what "stop at the previous candle's low"
         # means on a short. Dropped rather than honoured, and the trade taken
@@ -59,6 +64,10 @@ class SpecRule:
         # silently invert it.
         if stop is not None and (stop >= entry if long else stop <= entry):
             stop = None
+        # A swing stop is the rule's risk definition, not a nicety: with none
+        # available (too far, or on the wrong side) the setup is skipped.
+        if stop is None and spec.stop is not None and spec.stop.kind == "swing":
+            return Intent.nothing()
         target = spec.target.price(view, entry, long, stop=stop) if spec.target else None
         if target is not None and (target <= entry if long else target >= entry):
             target = None

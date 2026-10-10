@@ -31,7 +31,7 @@ export interface Group {
   any?: Compare[];
 }
 
-export type LevelKind = "percent" | "candle" | "atr" | "pivot" | "reward";
+export type LevelKind = "percent" | "candle" | "atr" | "pivot" | "swing" | "reward";
 
 export interface Level {
   kind: LevelKind;

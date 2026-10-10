@@ -59,6 +59,63 @@ const OPENING: StrategySpec = {
   target: null,
 };
 
+const ema = (length: number, ago = 0, tf?: string) =>
+  ({ kind: "indicator", name: "ema", length, ago, tf }) as const;
+const rsi14 = { kind: "indicator", name: "rsi", length: 14 } as const;
+const px = (field: "open" | "high" | "low" | "close", ago = 0) =>
+  ({ kind: "price", field, ago }) as const;
+const num = (value: number) => ({ kind: "value", value }) as const;
+
+/**
+ * Trend pullback: EMA 50 over 200 and rising, price back at the 50, a red candle
+ * then a green one, RSI in 45-55, entered on a break of the green candle's high.
+ * The short side is the mirror. Meant for 15m BTC and ETH.
+ */
+const PULLBACK: StrategySpec = {
+  name: "Trend pullback · EMA 50/200 + RSI",
+  trigger: { kind: "break", field: "high", ago: 0, within: 2 },
+  long_entry: {
+    all: [
+      { left: ema(50), op: "above", right: ema(200) },
+      { left: ema(50), op: "above", right: ema(50, 10) },
+      { left: ema(200), op: "above", right: ema(200, 10) },
+      { left: px("close"), op: "above", right: ema(50) },
+      { left: px("low", 1), op: "below", right: ema(50, 1) },
+      { left: px("close", 1), op: "below", right: px("open", 1) },
+      { left: px("close"), op: "above", right: px("open") },
+      { left: rsi14, op: "above", right: num(45) },
+      { left: rsi14, op: "below", right: num(55) },
+    ],
+  },
+  short_entry: {
+    all: [
+      { left: ema(50), op: "below", right: ema(200) },
+      { left: ema(50), op: "below", right: ema(50, 10) },
+      { left: ema(200), op: "below", right: ema(200, 10) },
+      { left: px("close"), op: "below", right: ema(50) },
+      { left: px("high", 1), op: "above", right: ema(50, 1) },
+      { left: px("close", 1), op: "above", right: px("open", 1) },
+      { left: px("close"), op: "below", right: px("open") },
+      { left: rsi14, op: "above", right: num(45) },
+      { left: rsi14, op: "below", right: num(55) },
+    ],
+  },
+  long_exit: {
+    any: [
+      { left: rsi14, op: "above", right: num(70) },
+      { left: rsi14, op: "below", right: num(45) },
+    ],
+  },
+  short_exit: {
+    any: [
+      { left: rsi14, op: "below", right: num(30) },
+      { left: rsi14, op: "above", right: num(55) },
+    ],
+  },
+  stop: { kind: "swing", length: 5, value: 2 },
+  target: null,
+};
+
 /**
  * Building a strategy and seeing what it would have done.
  *
@@ -354,6 +411,19 @@ export function Backtesting({ onHome }: Props) {
       <div className="build">
         <section className="what wide">
           <h3>The strategy</h3>
+          <div className="row">
+            <label>Start from</label>
+            <button
+              type="button"
+              onClick={() => {
+                setSpec(PULLBACK);
+                setInterval("15m");
+                setDays(1095);
+              }}
+            >
+              Trend pullback · 15m
+            </button>
+          </div>
           <div className="row">
             <label>Called</label>
             <input

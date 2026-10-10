@@ -309,7 +309,8 @@ class Level:
     """
 
     kind: str
-    #: For "percent": how far, as a percentage. For "atr": the multiple.
+    #: For "percent": how far, as a percentage. For "atr": the multiple. For
+    #: "swing": the widest stop allowed, as a percentage of the entry (0 = any).
     value: float = 0.0
     length: int = 14
     #: For "candle": which price, and how many bars back.
@@ -342,6 +343,14 @@ class Level:
         if self.kind == "pivot":
             levels = frame.pivots()
             return levels.levels[self.name] if levels else None
+        if self.kind == "swing":
+            found = frame.swing(long, self.length)
+            # `value` caps how far away the stop may be, as a percentage of the
+            # entry. A swing further off than that is a trade not worth the risk,
+            # so there is no level and the rule stands aside.
+            if found is not None and self.value and abs(entry - found) / entry * 100 > self.value:
+                return None
+            return found
         if self.kind == "reward":
             # A target expressed as a multiple of the risk taken, which needs the
             # stop to exist first.
@@ -521,14 +530,14 @@ def level(raw: Any) -> Level | None:
     if not isinstance(raw, dict):
         raise SpecError(f"{raw!r} is not a stop or a target")
     kind = str(raw.get("kind", "")).lower()
-    if kind not in ("percent", "candle", "atr", "pivot", "reward"):
+    if kind not in ("percent", "candle", "atr", "pivot", "swing", "reward"):
         raise SpecError(
-            f"{kind!r} is not a kind of level; pick percent, candle, atr, pivot or reward"
+            f"{kind!r} is not a kind of level; pick percent, candle, atr, pivot, swing or reward"
         )
     return Level(
         kind=kind,
         value=float(raw.get("value", 0.0)),
-        length=_whole(raw.get("length", 14), "length"),
+        length=_whole(raw.get("length", 5 if kind == "swing" else 14), "length"),
         name=str(raw.get("field") or raw.get("level") or "low"),
         ago=_whole(raw.get("ago", 1), "ago"),
         interval=_interval(raw.get("tf") or raw.get("interval")),

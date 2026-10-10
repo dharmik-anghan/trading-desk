@@ -13,6 +13,7 @@ const KINDS: { id: LevelKind; name: string }[] = [
   { id: "candle", name: "a candle's price" },
   { id: "atr", name: "an ATR multiple" },
   { id: "pivot", name: "a pivot level" },
+  { id: "swing", name: "the last swing low / high" },
   { id: "reward", name: "a multiple of the risk" },
 ];
 
@@ -37,6 +38,7 @@ export function LevelPicker({ label, value, onChange, allowReward = false }: Pro
           if (kind === "candle") onChange({ kind, field: "low", ago: 1 });
           else if (kind === "atr") onChange({ kind, length: 14, value: 2 });
           else if (kind === "pivot") onChange({ kind, level: "S1" });
+          else if (kind === "swing") onChange({ kind, length: 5, value: 2 });
           else if (kind === "reward") onChange({ kind, value: 2 });
           else onChange({ kind: "percent", value: 1 });
         }}
@@ -118,6 +120,30 @@ export function LevelPicker({ label, value, onChange, allowReward = false }: Pro
             </option>
           ))}
         </select>
+      )}
+
+      {value?.kind === "swing" && (
+        <>
+          <input
+            className="num"
+            type="number"
+            min={1}
+            value={value.length ?? 5}
+            onChange={(e) => onChange({ ...value, length: Math.max(1, Number(e.target.value)) })}
+            title="Bars either side that must be higher (lower for a short)"
+          />
+          <small>bars each side, skip if wider than</small>
+          <input
+            className="num"
+            type="number"
+            min={0}
+            step="0.1"
+            value={value.value ?? 0}
+            onChange={(e) => onChange({ ...value, value: Math.max(0, Number(e.target.value)) })}
+            title="Widest stop allowed, as a percent of the entry. 0 for no limit"
+          />
+          <small>%</small>
+        </>
       )}
 
       {value?.kind === "reward" && (

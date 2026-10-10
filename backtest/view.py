@@ -116,6 +116,23 @@ class Frame:
         except AttributeError:
             raise KeyError(f"a bar has no {field!r}") from None
 
+    def swing(self, long: bool, strength: int = 5, reach: int = 200) -> float | None:
+        """The most recent confirmed swing low (for a long) or high (for a short).
+
+        A swing low is a bar whose low is the lowest of `strength` bars either side.
+        It can only be known `strength` bars after it happened, so the newest
+        candidate is `strength` bars back - looking at a nearer bar would be using
+        bars that have not been drawn yet. Ties go to the later bar.
+        """
+        newest = self._cursor - strength
+        for j in range(newest, max(strength, newest - reach) - 1, -1):
+            window = self.bars[j - strength : j + strength + 1]
+            if long and self.bars[j].low <= min(b.low for b in window):
+                return self.bars[j].low
+            if not long and self.bars[j].high >= max(b.high for b in window):
+                return self.bars[j].high
+        return None
+
     def pivots(self, ago: int = 0) -> Pivots | None:
         """Levels for now, from the previous closed bar of this timeframe.
 
