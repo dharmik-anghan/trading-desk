@@ -58,11 +58,9 @@
 }
 .home h1 {
   margin: 28px 0 0;
-  font-family: var(--u);
+  font-family: var(--n);
   font-size: var(--fs-xl);
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 .home .cards {
   margin-top: 28px;

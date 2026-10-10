@@ -22,7 +22,7 @@
 }
 .bt.ob > .ob-top h1 {
   font-family: var(--n);
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;

@@ -13,11 +13,9 @@
 }
 .rrgpage > header h1 {
   margin: 0;
-  font-family: var(--u);
-  font-size: 22px;
+  font-family: var(--n);
+  font-size: var(--fs-xl);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .rrgpage > header p {
   grid-column: 2;

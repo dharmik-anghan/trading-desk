@@ -20,7 +20,7 @@
 }
 .sim-top h1 {
   margin: 0;
-  font: 600 20px var(--n);
+  font: 600 var(--fs-xl) var(--n);
 }
 .sim-top > select {
   height: var(--h-md);
