@@ -30,7 +30,7 @@
 }
 .a-watch .wsym {
   font-family: var(--u);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   margin-left: 6px;
   letter-spacing: 0.02em;
 }
@@ -57,7 +57,7 @@
   flex: 1;
   display: flex;
   min-height: 0;
-  padding: 4px 2px 0;
+  padding: var(--s2) 2px 0;
 }
 
 /* Where the bars came from, when that is worth a word. Quiet: it is true of
@@ -65,19 +65,19 @@
 .chartnote {
   margin: 0;
   flex: none;
-  padding: 0 4px;
+  padding: 0 var(--s2);
   font-family: var(--u);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 
 .chartfoot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 9px 6px;
+  gap: var(--s4);
+  padding: var(--s2) var(--s4) var(--s3);
   font-family: var(--u);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   border-top: 1px solid var(--grid);
 }
 /* A stream that has stopped means every price on screen is a memory. */
@@ -96,13 +96,13 @@
   font: inherit;
   font-family: var(--u);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-lg);
   letter-spacing: 0.06em;
   color: var(--dim);
   background: transparent;
   border: 0;
   cursor: pointer;
-  gap: 6px;
+  gap: var(--s3);
 }
 .deskswitch:hover {
   color: var(--you);
@@ -113,7 +113,7 @@
   border-radius: var(--r);
 }
 .swapmark {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   opacity: 0.55;
 }
 .deskswitch:hover .swapmark {
@@ -152,7 +152,7 @@
    with one topic selected every row would carry the same word. */
 .ntopic {
   font-family: var(--u);
-  font-size: 9.5px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dim);
@@ -166,7 +166,7 @@
    "-0.01" and cannot be mistaken for a loss. */
 .pside {
   font-family: var(--u);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border-radius: var(--r);
@@ -192,7 +192,7 @@
    position its absence is the first thing worth knowing. */
 .prot {
   font-family: var(--u);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -203,10 +203,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding: 6px 9px 8px;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4) var(--s4);
   border-top: 1px solid var(--grid);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
 }
 .protform input {
   font: inherit;
@@ -217,7 +217,7 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 2px 4px;
+  padding: 2px var(--s2);
 }
 .protform input:focus-visible {
   outline: 2px solid var(--you);
@@ -230,18 +230,18 @@
 .ticket {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 9px;
+  gap: var(--s3);
+  padding: var(--s4) var(--s4);
 }
 .ticket label {
   display: grid;
   grid-template-columns: 78px 1fr;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
 }
 .ticket label small {
   font-family: var(--u);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 .ticket input,
@@ -249,12 +249,12 @@
   font: inherit;
   font-family: var(--n);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--fg);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 3px 5px;
+  padding: 3px var(--s2);
   min-width: 0;
 }
 .ticket input:focus-visible,
@@ -267,19 +267,19 @@
    rather than a dropdown, in the hues the desk already uses for buy and sell. */
 .tside {
   display: flex;
-  gap: 4px;
+  gap: var(--s2);
 }
 .tside button {
   flex: 1;
   font: inherit;
   font-family: var(--u);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.03em;
   color: var(--dim);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 4px 0;
+  padding: var(--s2) 0;
   cursor: pointer;
 }
 .tside button.on.buy {
@@ -303,22 +303,22 @@
   display: grid;
   grid-template-columns: 78px 1fr;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--s3);
   padding-top: 2px;
   border-top: 1px solid var(--grid);
 }
 .tnotional small {
   font-family: var(--u);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 .tnotional b {
   font-family: var(--n);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 .xbtn.place {
-  padding: 5px 0;
+  padding: var(--s2) 0;
   font-family: var(--u);
   letter-spacing: 0.03em;
 }
@@ -330,7 +330,7 @@
   color: var(--dn);
 }
 .outcome .sent {
-  padding: 6px 9px;
+  padding: var(--s3) var(--s4);
   margin: 0;
   color: var(--up);
 }
@@ -341,7 +341,7 @@
   margin: 0;
   padding: 0 0 0 84px;
   font-family: var(--u);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--dim);
   line-height: 1.35;
 }

@@ -21,6 +21,34 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- panel tabs ----------
+   News / Calendar in a panel header. Flat text; the selected one takes the
+   selection hue, as a pressed .fbar button does. */
+.tabs {
+  display: flex;
+  align-self: stretch;
+  gap: var(--s5);
+}
+.tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--dim);
+  font-family: var(--u);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0.012em;
+}
+.tabs button:hover {
+  color: var(--fg);
+}
+.tabs button[aria-selected="true"] {
+  color: var(--fg);
+  border-bottom-color: var(--you);
+}
+
 /* ---------- news and calendar ---------- */
 .fbar {
   display: flex;
