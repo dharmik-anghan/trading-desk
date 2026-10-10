@@ -5,9 +5,9 @@
 .zoom {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px 0;
-  font-size: 11px;
+  gap: var(--s3);
+  padding: var(--s2) var(--s4) 0;
+  font-size: var(--fs-sm);
 }
 .zoom .xbtn {
   min-width: 24px;
@@ -24,8 +24,8 @@
 /* ---------- news and calendar ---------- */
 .fbar {
   display: flex;
-  gap: 5px;
-  padding: 5px 9px;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4);
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
@@ -33,10 +33,10 @@
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: var(--r);
-  padding: 1px 8px;
+  padding: 1px var(--s4);
   cursor: pointer;
   color: var(--dim);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-family: var(--u);
 }
 .fbar button:hover {
@@ -49,7 +49,7 @@
 }
 .nitem {
   display: block;
-  padding: 6px 9px;
+  padding: var(--s3) var(--s4);
   border-bottom: 1px solid var(--grid);
   color: inherit;
   text-decoration: none;
@@ -63,10 +63,10 @@ a.nitem:hover .nhead {
 }
 .nmeta {
   display: flex;
-  gap: 7px;
+  gap: var(--s3);
   align-items: baseline;
   color: var(--dim);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   min-width: 0;
 }
 .nmeta > span:first-child {
@@ -80,9 +80,9 @@ a.nitem:hover .nhead {
   max-width: 58ch;
 }
 .imp {
-  font-size: 9.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
-  padding: 0 4px;
+  padding: 0 var(--s2);
   border-radius: var(--r);
   letter-spacing: 0.04em;
   flex: none;
@@ -111,14 +111,14 @@ a.nitem:hover .nhead {
   flex-direction: column;
   justify-content: center;
   line-height: 1.15;
-  padding: 7px 16px;
+  padding: var(--s3) var(--s6);
   border-left: 1px solid var(--grid);
   min-width: 0;
   max-width: 340px;
 }
 .tbevent small {
   color: var(--dim);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.02em;
   margin-bottom: 2px;
   white-space: nowrap;

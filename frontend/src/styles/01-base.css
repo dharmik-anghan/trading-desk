@@ -5,8 +5,8 @@
 .ws {
   height: 100%;
   display: grid;
-  gap: 5px;
-  padding: 5px;
+  gap: var(--s2);
+  padding: var(--s2);
   /* Three columns on the options desk: the rail, a chart, and the book.
      It was two, with the structures and the chain stacked in one wide column -
      which left a single 370px card floating in 1,150px of nothing, and left
@@ -46,14 +46,14 @@
 }
 .chartpb .reading-structure,
 .chartpb .volcaveat {
-  padding: 0 5px;
+  padding: 0 var(--s2);
 }
 
 /* The size row on a chart, whichever desk it is: one tab per size, and with
    structure on, each tab also carries the trend that size is in. */
 .frames {
   display: flex;
-  gap: 4px;
+  gap: var(--s2);
   flex: none;
 }
 .frames {
@@ -62,7 +62,7 @@
 /* The trend each size is in, beside its name, when structure is on. */
 .frames .trend {
   font-style: normal;
-  font-size: 9px;
+  font-size: var(--fs-xs);
   margin-left: 4px;
 }
 .frames .trend.rise { color: var(--you); }
@@ -74,21 +74,21 @@
 .frames .tally {
   margin-left: 8px;
   font-family: var(--u);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 .frames .tally .rise { color: var(--you); }
 .kpick {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: var(--s2);
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .kpick input {
   width: 40px;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -104,7 +104,7 @@
 }
 .reading-structure {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--dim);
 }
@@ -141,7 +141,7 @@
 }
 .ph h2 {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 600;
   letter-spacing: 0.012em;
 }
@@ -165,7 +165,7 @@
   grid-area: left;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--s2);
   min-height: 0;
   min-width: 0;
   /* Scrolls inside itself. Without this the rail's panels stack past the
@@ -201,7 +201,7 @@
   background: var(--head);
 }
 .cx {
-  padding: 5px 14px;
+  padding: var(--s2) var(--s5);
   border-right: 1px solid var(--grid);
   min-width: 0;
 }
@@ -212,7 +212,7 @@
   display: block;
   font-style: normal;
   color: var(--dim);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.02em;
   margin-bottom: 1px;
   white-space: nowrap;
@@ -223,7 +223,7 @@
   font-family: var(--n);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  font-size: 13px;
+  font-size: var(--fs-lg);
   white-space: nowrap;
 }
 /* strike-valued figures carry the market hue, per the colour law */
@@ -242,19 +242,19 @@
   cursor: pointer;
   font: inherit;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-md);
   letter-spacing: 0.012em;
   color: var(--fg);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--s2);
 }
 .disclose:hover {
   color: var(--you);
 }
 .disclose span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
 }
 .a-baskets {
   grid-area: baskets;
@@ -271,7 +271,7 @@
 .tb {
   display: flex;
   align-items: stretch;
-  padding: 0 12px;
+  padding: 0 var(--s5);
   flex-wrap: wrap;
   min-height: 52px;
 }
@@ -280,24 +280,24 @@
   align-items: center;
   font-family: var(--u);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-lg);
   letter-spacing: 0.06em;
   color: var(--dim);
-  padding-right: 14px;
+  padding-right: var(--s5);
 }
 .tbk {
   display: flex;
   flex-direction: column;
   justify-content: center;
   line-height: 1.1;
-  padding: 7px 14px;
+  padding: var(--s3) var(--s5);
   border-left: 1px solid var(--grid);
   min-width: 0;
 }
 .tbk small {
   font-family: var(--u);
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.02em;
   margin-bottom: 3px;
 }
@@ -305,7 +305,7 @@
   font-family: var(--n);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  font-size: 13.5px;
+  font-size: var(--fs-lg);
 }
 .tbk.spot b {
   font-size: 15px;
@@ -313,7 +313,7 @@
   letter-spacing: -0.01em;
 }
 .tbk.spot .chg {
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 500;
   margin-left: 3px;
 }
@@ -344,17 +344,17 @@
 .tbtools {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding-left: 14px;
+  gap: var(--s3);
+  padding-left: var(--s5);
   border-left: 1px solid var(--grid);
 }
 
 .feed {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
   color: var(--dim);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 .dot {
@@ -481,17 +481,17 @@ th {
   color: var(--dim);
   font-weight: 500;
   text-align: right;
-  padding: var(--s2) 7px;
+  padding: var(--s2) var(--s3);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
   font-size: var(--fs-xs);
 }
 td {
-  padding: 2.5px 7px;
+  padding: 2.5px var(--s3);
   text-align: right;
   white-space: nowrap;
   border-bottom: 1px solid var(--grid);
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 th.l,
 td.l {
@@ -507,13 +507,13 @@ tr.total td {
 }
 
 .empty {
-  padding: 11px;
+  padding: var(--s5);
   margin: 0;
   color: var(--dim);
   line-height: 1.45;
 }
 .err {
-  padding: 9px 11px;
+  padding: var(--s4) var(--s5);
   margin: 0;
   color: var(--dn);
   line-height: 1.45;
@@ -524,10 +524,10 @@ tr.total td {
 .sec {
   display: flex;
   align-items: baseline;
-  gap: 7px;
-  padding: 5px 9px 4px;
+  gap: var(--s3);
+  padding: var(--s2) var(--s4) var(--s2);
   color: var(--fg);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.02em;
   background: var(--head);
@@ -541,11 +541,11 @@ tr.total td {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 9px;
+  gap: var(--s4);
 }
 .irow + .irow {
   margin-top: 2px;
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
 }
 .irow.dim span:last-child {
   font-family: var(--n);

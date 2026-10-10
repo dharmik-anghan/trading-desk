@@ -54,7 +54,7 @@
   height: 14px;
   padding: 0 3px;
   font-family: var(--u);
-  font-size: 9px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 14px;
   text-align: center;
@@ -105,7 +105,7 @@
   flex-direction: column;
   justify-content: center;
   line-height: 1.1;
-  padding: 7px 14px;
+  padding: var(--s3) var(--s5);
   min-width: 0;
 }
 .fund + .fund {
@@ -114,7 +114,7 @@
 .fund small {
   font-family: var(--u);
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.02em;
   margin-bottom: 3px;
   white-space: nowrap;
@@ -133,14 +133,14 @@
 }
 .fund .unit {
   margin-left: 4px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 400;
   color: var(--dim);
 }
 .fund em {
   margin-top: 2px;
   font-style: normal;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--dim);
   white-space: nowrap;
 }
@@ -155,7 +155,7 @@
    The question the desk could not answer: it showed what a position is, and
    nothing about whether the options in it were expensive. */
 .a-vol .pb {
-  padding: 8px 9px 10px;
+  padding: var(--s4) var(--s4) var(--s4);
 }
 .volhead {
   display: grid;
@@ -167,12 +167,12 @@
 }
 .volfig {
   background: var(--panel);
-  padding: 7px 9px;
+  padding: var(--s3) var(--s4);
 }
 .volfig small {
   display: block;
   font-family: var(--u);
-  font-size: 9px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.03em;
   color: var(--dim);
   white-space: nowrap;
@@ -189,12 +189,12 @@
   display: block;
   margin-top: 1px;
   font-style: normal;
-  font-size: 9px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 .a-vol .move {
   margin: 9px 0 0;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--dim);
 }
@@ -212,7 +212,7 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .rankhead b {
@@ -248,8 +248,8 @@
 .rankfoot {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 9px;
+  gap: var(--s4);
+  font-size: var(--fs-xs);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
@@ -257,18 +257,18 @@
   width: 100%;
   margin-top: 12px;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 .volrealised th {
   text-align: left;
   font-weight: 400;
   color: var(--dim);
-  padding: 3px 8px 3px 0;
+  padding: 3px var(--s4) 3px 0;
   white-space: nowrap;
 }
 .volrealised td {
   text-align: left;
-  padding: 3px 8px 3px 0;
+  padding: 3px var(--s4) 3px 0;
 }
 .volrealised td.n {
   text-align: right;
@@ -281,23 +281,23 @@
 }
 .volrealised tr.aside:first-of-type th {
   border-top: 1px solid var(--grid);
-  padding-top: 5px;
+  padding-top: var(--s2);
 }
 .volrealised tr.aside:first-of-type td {
   border-top: 1px solid var(--grid);
-  padding-top: 5px;
+  padding-top: var(--s2);
 }
 .volnote {
   margin: 7px 0 0;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   line-height: 1.45;
   color: var(--dim);
 }
 .volcaveat {
   margin: 10px 0 0;
-  padding-left: 8px;
+  padding-left: var(--s4);
   border-left: 2px solid var(--mkt);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   line-height: 1.45;
   color: var(--dim);
 }

@@ -4,13 +4,13 @@
    --up/--dn only on the banked figures, --sell/--you only on the side. */
 .fills {
   margin: 0 0 8px;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
 }
 .fills-h {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 2px 0 6px;
+  gap: var(--s4);
+  padding: 2px 0 var(--s3);
 }
 .fills-h .sp {
   flex: 1;
@@ -20,7 +20,7 @@
 }
 .fills-box {
   margin: 6px 0;
-  padding: 7px 9px;
+  padding: var(--s3) var(--s4);
   border: 1px solid var(--line);
   border-left: 3px solid var(--line);
   border-radius: var(--r);
@@ -36,13 +36,13 @@
   display: block;
   margin-bottom: 4px;
   font-family: var(--u);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 .fills-row {
   display: flex;
-  gap: 12px;
+  gap: var(--s5);
   align-items: baseline;
   padding: 2px 0;
   font-variant-numeric: tabular-nums;
@@ -64,7 +64,7 @@
 .fills-act {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--s3);
   align-items: center;
   margin-top: 6px;
 }
@@ -73,7 +73,7 @@
 .addleg input,
 .addleg select {
   font: inherit;
-  padding: 3px 6px;
+  padding: 3px var(--s3);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -91,7 +91,7 @@
 .closed-list table {
   width: 100%;
   margin-top: 6px;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -113,12 +113,12 @@
 .story {
   list-style: none;
   margin: 0;
-  padding: 2px 9px 6px;
-  font-size: 11.5px;
+  padding: 2px var(--s4) var(--s3);
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 .story > li {
-  padding: 5px 0 5px 10px;
+  padding: var(--s2) 0 var(--s2) var(--s4);
   border-left: 2px solid var(--line);
 }
 .story > li.adjusted {
@@ -129,22 +129,22 @@
 }
 .story-h {
   display: flex;
-  gap: 10px;
+  gap: var(--s4);
   align-items: baseline;
 }
 .story ul {
   margin: 3px 0 0;
-  padding-left: 14px;
+  padding-left: var(--s5);
   color: var(--dim);
 }
 
 .addleg {
-  padding: 6px 9px;
+  padding: var(--s3) var(--s4);
 }
 .addleg.open {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--s3);
   align-items: center;
 }
 .addleg .sym {
@@ -156,6 +156,6 @@
 .addleg .note {
   flex-basis: 100%;
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 

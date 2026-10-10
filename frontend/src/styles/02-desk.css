@@ -1,6 +1,6 @@
 /* ---------- option chain ---------- */
 .chain td {
-  padding: 2.5px 6px;
+  padding: 2.5px var(--s3);
 }
 .chain th.k,
 .chain td.k {
@@ -32,11 +32,11 @@
 }
 .chain th.side.c {
   text-align: right;
-  padding-right: 10px;
+  padding-right: var(--s4);
 }
 .chain th.side.p {
   text-align: left;
-  padding-left: 10px;
+  padding-left: var(--s4);
 }
 .chain tr.atm td {
   background-color: var(--atm);
@@ -60,10 +60,10 @@
   flex-wrap: wrap;
   white-space: normal;
   overflow-x: visible;
-  gap: 6px;
-  row-gap: 5px;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  gap: var(--s3);
+  row-gap: var(--s2);
+  padding-top: var(--s2);
+  padding-bottom: var(--s2);
 }
 /* The select already reads "29-09-2026 · monthly". The label and the tag beside
    it say the same thing twice, and here that costs a line. */
@@ -73,18 +73,18 @@
 }
 .a-chain.tight .chain th,
 .a-chain.tight .chain td {
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left: var(--s2);
+  padding-right: var(--s2);
 }
 .a-chain.tight .chain th {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
 }
 .leg {
   display: inline-block;
   font-family: var(--n);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
-  padding: 0 4px;
+  padding: 0 var(--s2);
   border-radius: var(--r);
   margin-left: 5px;
   color: var(--you-fg);
@@ -100,8 +100,8 @@
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 7px;
-  padding: 7px;
+  gap: var(--s3);
+  padding: var(--s3);
 }
 .card {
   border: 1px solid var(--line);
@@ -114,8 +114,8 @@
 .card-h {
   display: flex;
   align-items: baseline;
-  gap: 9px;
-  padding: 6px 9px;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
   border-bottom: 1px solid var(--grid);
   white-space: nowrap;
   overflow: hidden;
@@ -127,7 +127,7 @@
 .card-h .dim {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
 }
 .card-h .mtm {
   margin-left: auto;
@@ -139,28 +139,28 @@
 .met {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 4px 0;
+  padding: var(--s2) 0;
 }
 .met div {
-  padding: 2px 9px;
+  padding: 2px var(--s4);
   min-width: 0;
 }
 .met small {
   display: block;
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
 }
 .met span {
   font-family: var(--n);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: var(--fs-md);
   white-space: nowrap;
 }
 .card-a {
   display: flex;
-  gap: 7px;
+  gap: var(--s3);
   align-items: center;
-  padding: 5px 9px;
+  padding: var(--s2) var(--s4);
   border-top: 1px solid var(--grid);
 }
 
@@ -177,17 +177,17 @@
 .legend {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--s5);
   flex-wrap: wrap;
-  padding: 5px 10px 7px;
+  padding: var(--s2) var(--s4) var(--s3);
   color: var(--dim);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   border-bottom: 1px solid var(--line);
 }
 .legend span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
   white-space: nowrap;
 }
 .legend svg {
@@ -199,11 +199,11 @@
 .checks {
   display: grid;
   gap: 3px;
-  padding: 7px 10px;
+  padding: var(--s3) var(--s4);
 }
 .checks div {
   display: flex;
-  gap: 8px;
+  gap: var(--s4);
   align-items: baseline;
   line-height: 1.4;
 }
@@ -217,7 +217,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: var(--s6);
 }
 .askbox {
   background: var(--panel);
@@ -229,11 +229,11 @@
 }
 .askbox h3 {
   margin: 0;
-  padding: 13px 15px 0;
-  font-size: 13px;
+  padding: var(--s5) var(--s6) 0;
+  font-size: var(--fs-lg);
 }
 .askbox .body {
-  padding: 8px 15px 12px;
+  padding: var(--s4) var(--s6) var(--s5);
   line-height: 1.5;
 }
 .askbox table {
@@ -242,13 +242,13 @@
 }
 .askrow {
   display: flex;
-  gap: 8px;
+  gap: var(--s4);
   justify-content: flex-end;
-  padding: 0 15px 13px;
+  padding: 0 var(--s6) var(--s5);
 }
 .askrow button {
   border-radius: var(--r);
-  padding: 6px 13px;
+  padding: var(--s3) var(--s5);
   cursor: pointer;
   font-family: var(--u);
   border: 1px solid var(--line);
@@ -301,7 +301,7 @@
   .tbk {
     border-left: 0;
     padding-left: 0;
-    padding-right: 16px;
+    padding-right: var(--s6);
   }
   /* Stacked at this width, so the dividers that grouped the P&L figures on one
      row no longer describe anything. */
@@ -328,8 +328,8 @@
 .adopt label {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 5px 8px;
+  gap: var(--s4);
+  padding: var(--s2) var(--s4);
   border-bottom: 1px solid var(--grid);
   cursor: pointer;
 }
@@ -361,22 +361,22 @@
 .expiry {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
   min-width: 0;
 }
 .expiry select {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 2px 6px;
+  padding: 2px var(--s3);
   font-family: var(--u);
   max-width: 190px;
 }
 .tag {
-  font-size: 9.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
-  padding: 0 4px;
+  padding: 0 var(--s2);
   border-radius: var(--r);
   background: var(--grid);
   color: var(--dim);
