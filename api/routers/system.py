@@ -10,10 +10,11 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from api.deps import BrokerDep, HolidaysDep
+from api.deps import HolidaysDep, OptionsVenueDep, get_broker
+from broker.errors import BrokerError
 from venues import listed
 from venues.calendar import IST, in_session, next_open, session_bounds
 
@@ -36,13 +37,23 @@ def nse_status(now: datetime, holidays: frozenset[date]) -> dict[str, object]:
 
 
 @router.get("/api/health")
-def health(broker: BrokerDep, holidays: HolidaysDep) -> dict[str, object]:
+def health(
+    request: Request, venue: OptionsVenueDep, holidays: HolidaysDep
+) -> dict[str, object]:
     """Liveness, plus whether broker reads are currently degraded.
 
     Polled rarely; the per-request status codes above are what the desk reacts
     to. This is for the case where cached values are being served over a rate
     limit and every request still looks like a success.
+
+    Answers with the broker logged out too: it is also what tells the desk the
+    NSE is open, and an expired login is said by every other panel already.
     """
+    try:
+        override = request.app.dependency_overrides.get(get_broker)
+        broker = override() if override else get_broker(venue)
+    except BrokerError:
+        broker = None
     since = getattr(broker, "seconds_since_rate_limited", None)
     recently = since is not None and since < 60
     return {

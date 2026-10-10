@@ -66,9 +66,11 @@ def _isolate_env() -> Iterator[None]:
     """
     previous = os.environ.get(token_store.ENV_TOKEN_KEY)
     os.environ.pop(token_store.ENV_TOKEN_KEY, None)
+    token_store.reset_refresh_backoff()
     try:
         yield
     finally:
+        token_store.reset_refresh_backoff()
         if previous is None:
             os.environ.pop(token_store.ENV_TOKEN_KEY, None)
         else:
@@ -173,3 +175,66 @@ def test_refresh_rejects_an_unexchanged_auth_code(
             now=NOW,
         )
     assert not env_path.exists()
+
+
+def test_failed_login_is_not_retried_until_the_cooldown_passes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Every caller retrying a failed login is what got the login endpoint itself
+    rate limited: the paper watcher alone asked once a second."""
+    from broker.fyers.auth import AutoLoginError
+
+    calls: list[datetime] = []
+
+    def refused(**_kwargs: object) -> str:
+        calls.append(NOW)
+        raise AutoLoginError("429 Client Error: Too Many Requests")
+
+    monkeypatch.setattr(token_store, "auto_login", refused)
+    settings = make_settings(make_token(exp=NOW - timedelta(hours=1)))
+    env_path = tmp_path / ".env"
+
+    with pytest.raises(TokenRefreshError, match="Too Many Requests"):
+        get_access_token(settings, env_path=env_path, now=NOW)
+    with pytest.raises(TokenRefreshError, match="Trying again in"):
+        get_access_token(settings, env_path=env_path, now=NOW + timedelta(seconds=30))
+    assert len(calls) == 1
+
+    # After the first cooldown it tries again, and a second failure waits longer.
+    with pytest.raises(TokenRefreshError):
+        get_access_token(settings, env_path=env_path, now=NOW + timedelta(seconds=61))
+    assert len(calls) == 2
+    with pytest.raises(TokenRefreshError, match="Trying again in"):
+        get_access_token(settings, env_path=env_path, now=NOW + timedelta(seconds=61 + 90))
+    assert len(calls) == 2
+
+
+def test_a_successful_login_clears_the_cooldown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from broker.fyers.auth import AutoLoginError
+
+    fresh = make_token(exp=NOW + timedelta(hours=14))
+    answers: list[str | Exception] = [AutoLoginError("down"), fresh]
+
+    def flaky(**_kwargs: object) -> str:
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(token_store, "auto_login", flaky)
+    settings = make_settings(make_token(exp=NOW - timedelta(hours=1)))
+    env_path = tmp_path / ".env"
+
+    with pytest.raises(TokenRefreshError):
+        get_access_token(settings, env_path=env_path, now=NOW)
+    assert get_access_token(settings, env_path=env_path, now=NOW + timedelta(seconds=61)) == fresh
+    assert token_store._failed_until is None
+
+
+def test_a_refresh_failure_is_an_auth_failure_for_the_desk() -> None:
+    """So the API answers 401 "log in" rather than a 500 with a traceback."""
+    from broker.errors import AuthFailed
+
+    assert issubclass(TokenRefreshError, AuthFailed)

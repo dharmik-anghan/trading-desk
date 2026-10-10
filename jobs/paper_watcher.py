@@ -59,6 +59,12 @@ class PaperWatcher:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001 - a bad pass must not end the loop
+                # Once a second, so a failure that persists - an expired login -
+                # is logged in full when it starts, not on every pass.
+                repeated = (self.last_error or "").startswith(f"{type(exc).__name__}:")
                 self.last_error = f"{type(exc).__name__}: {exc}"
-                log.exception("paper pass failed")
+                if repeated:
+                    log.debug("paper pass failed again: %s", exc)
+                else:
+                    log.exception("paper pass failed")
             await asyncio.sleep(self._interval)

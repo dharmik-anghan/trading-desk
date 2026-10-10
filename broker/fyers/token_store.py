@@ -30,6 +30,7 @@ from pathlib import Path
 from dotenv import set_key
 
 import paths
+from broker.errors import AuthFailed
 from broker.fyers.auth import AutoLoginError, auto_login
 from settings import Settings, load_settings
 
@@ -42,9 +43,23 @@ REFRESH_SKEW = timedelta(minutes=15)
 
 _refresh_lock = threading.Lock()
 
+# After a failed login, how long before trying again: doubling per failure up
+# to the cap. Without it every caller retried the login - the paper watcher
+# once a second, every desk request besides - and Fyers answered the login
+# endpoint itself with 429, which kept the desk locked out for the morning.
+RETRY_AFTER = timedelta(seconds=60)
+RETRY_AFTER_MAX = timedelta(minutes=15)
 
-class TokenRefreshError(RuntimeError):
-    """Raised when no usable token exists and it cannot be refreshed."""
+_failures = 0
+_failed_until: datetime | None = None
+_last_failure: str | None = None
+
+
+class TokenRefreshError(AuthFailed):
+    """Raised when no usable token exists and it cannot be refreshed.
+
+    An `AuthFailed`, so the desk is told to log in (401) rather than handed a 500.
+    """
 
 
 def _decode_payload(token: str) -> dict[str, object] | None:
@@ -160,9 +175,30 @@ def get_access_token(
     if not force and token_is_usable(settings.fyers_access_token, now=now):
         return settings.fyers_access_token
 
+    global _failures, _failed_until, _last_failure
+    at = now or datetime.now(UTC)
     with _refresh_lock:
         # Re-read: another thread may have refreshed while we waited.
         current = os.environ.get(ENV_TOKEN_KEY, settings.fyers_access_token)
         if not force and token_is_usable(current, now=now):
             return current
-        return refresh_token(settings, env_path=env_path)
+        # A login just failed: say so again rather than asking Fyers again.
+        if not force and _failed_until is not None and at < _failed_until:
+            wait = int((_failed_until - at).total_seconds()) + 1
+            raise TokenRefreshError(f"{_last_failure} Trying again in {wait}s.")
+        try:
+            token = refresh_token(settings, env_path=env_path)
+        except TokenRefreshError as exc:
+            _failures += 1
+            _failed_until = at + min(RETRY_AFTER * 2 ** (_failures - 1), RETRY_AFTER_MAX)
+            _last_failure = str(exc)
+            raise
+        _failures, _failed_until, _last_failure = 0, None, None
+        return token
+
+
+def reset_refresh_backoff() -> None:
+    """Forget earlier login failures, so the next call tries straight away."""
+    global _failures, _failed_until, _last_failure
+    with _refresh_lock:
+        _failures, _failed_until, _last_failure = 0, None, None
