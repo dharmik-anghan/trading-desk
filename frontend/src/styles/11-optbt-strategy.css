@@ -7,7 +7,7 @@
   margin: 10px 0 0;
   max-width: 60ch;
   color: var(--dim);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   line-height: 1.55;
 }
 .obt .note {
@@ -16,7 +16,7 @@
 
 .obt figure {
   margin: 20px 0 0;
-  padding: 10px 0 4px;
+  padding: var(--s4) 0 var(--s2);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -24,11 +24,11 @@
 }
 .obt figcaption {
   display: flex;
-  gap: 12px;
+  gap: var(--s5);
   align-items: baseline;
-  padding: 0 12px 6px;
+  padding: 0 var(--s5) var(--s3);
   font-family: var(--u);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--dim);
@@ -54,7 +54,7 @@
 .obt svg .axis {
   fill: var(--dim);
   font-family: var(--n);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
 }
 .obt svg .cross {
@@ -84,14 +84,14 @@
   margin-top: 20px;
   border-collapse: separate;
   border-spacing: 2px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 .obt table.months caption {
   text-align: left;
-  padding-bottom: 6px;
+  padding-bottom: var(--s3);
   font-family: var(--u);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--dim);
@@ -99,13 +99,13 @@
 .obt table.months th {
   font-family: var(--u);
   font-weight: 500;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--dim);
-  padding: 2px 6px;
+  padding: 2px var(--s3);
 }
 .obt table.months td {
   min-width: 52px;
-  padding: 5px 6px;
+  padding: var(--s2) var(--s3);
   text-align: right;
   border-radius: var(--r);
   color: var(--fg);
@@ -123,7 +123,7 @@
 .obt table.months td.yr {
   background: none;
   font-weight: 600;
-  padding-left: 12px;
+  padding-left: var(--s5);
 }
 .obt table.months td.yr.up {
   color: var(--up);
@@ -146,7 +146,7 @@
 /* One trade, replayed. */
 .obt .replay {
   margin-top: 24px;
-  padding: 12px 0 8px;
+  padding: var(--s5) 0 var(--s4);
   background: var(--panel);
   border: 1px solid var(--line);
   border-left: 3px solid var(--you);
@@ -155,13 +155,13 @@
 .obt .replay > header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 12px;
+  gap: var(--s5);
+  padding: 0 var(--s5);
 }
 .obt .replay h3 {
   margin: 0;
   font-family: var(--u);
-  font-size: 13px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -170,14 +170,14 @@
 }
 .obt .replay .dim,
 .obt .replay .bad {
-  padding: 0 12px;
+  padding: 0 var(--s5);
 }
 .obt .replay .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  padding: 8px 12px 2px;
-  font-size: 11px;
+  gap: var(--s6);
+  padding: var(--s4) var(--s5) 2px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 .obt .replay .legend .time {
@@ -214,7 +214,7 @@
 }
 .obt .replay .tag {
   fill: var(--dim);
-  font-size: 10px;
+  font-size: var(--fs-xs);
 }
 .obt .replay .sold {
   fill: var(--sell);
@@ -245,7 +245,7 @@
 .obt .replay .events {
   margin: 8px 12px 0;
   padding-left: 18px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   line-height: 1.6;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
@@ -258,7 +258,7 @@
 .obt .legline {
   display: grid;
   grid-template-columns: 14px 104px 118px 96px 72px;
-  gap: 6px;
+  gap: var(--s3);
   align-items: baseline;
   font-variant-numeric: tabular-nums;
 }

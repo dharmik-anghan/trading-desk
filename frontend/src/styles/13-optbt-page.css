@@ -18,7 +18,7 @@
   display: flex !important;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
+  gap: var(--s4) var(--s6);
 }
 .bt.ob > .ob-top h1 {
   font-family: var(--n);
@@ -30,17 +30,17 @@
 .ob-scope {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
   margin-left: auto;
 }
 .ob-to {
   color: var(--dim);
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .ob select,
 .ob input {
-  height: 28px;
-  padding: 0 7px;
+  height: var(--h-md);
+  padding: 0 var(--s3);
   font: 12px var(--n);
   font-variant-numeric: tabular-nums;
   color: var(--fg);
@@ -58,13 +58,13 @@
 }
 .ob-error {
   color: var(--dn);
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 
 /* the strategy */
 .ob-strategy {
   margin-top: 18px;
-  padding: 14px 16px 16px;
+  padding: var(--s5) var(--s6) var(--s6);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -72,14 +72,14 @@
 .ob-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--s3);
 }
 .ob-presets button,
 .ob-add,
 .ob-reset,
 .ob-acts button {
-  height: 26px;
-  padding: 0 10px;
+  height: var(--h-md);
+  padding: 0 var(--s4);
   font: 12px var(--n);
   color: var(--dim);
   background: transparent;
@@ -97,12 +97,12 @@
 .ob-saved {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s3);
   margin-left: auto;
 }
 .ob-saved select,
 .ob-saved input {
-  height: 26px;
+  height: var(--h-md);
   font: 12px var(--n);
 }
 .ob-saved input {
@@ -118,15 +118,15 @@
 .ob-legs {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s3);
   margin-top: 12px;
 }
 .ob-leg {
   display: grid;
   grid-template-columns: 18px auto auto 78px auto auto auto auto 1fr;
   align-items: center;
-  gap: 8px;
-  padding: 7px 8px 7px 10px;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4) var(--s3) var(--s4);
   background: var(--bg);
   border: 1px solid var(--grid);
   border-left: 3px solid var(--you);
@@ -137,16 +137,16 @@
 }
 .ob-n {
   color: var(--dim);
-  font-size: 12px;
+  font-size: var(--fs-md);
   text-align: center;
 }
 .ob-seg {
   display: inline-flex;
 }
 .ob-seg button {
-  height: 28px;
+  height: var(--h-md);
   min-width: 40px;
-  padding: 0 10px;
+  padding: 0 var(--s4);
   font: 12px var(--n);
   color: var(--dim);
   background: var(--bg);
@@ -178,8 +178,8 @@
 .ob-lots {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  gap: var(--s2);
+  font-size: var(--fs-md);
   color: var(--dim);
 }
 .ob-lots input {
@@ -189,8 +189,8 @@
 .ob-left {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  gap: var(--s2);
+  font-size: var(--fs-md);
   color: var(--dim);
   white-space: nowrap;
 }
@@ -199,7 +199,7 @@
 }
 .ob-strike {
   display: flex;
-  gap: 5px;
+  gap: var(--s2);
 }
 .ob-strike select {
   flex: 1;
@@ -210,10 +210,10 @@
 .ob-level {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s2);
 }
 .ob-lbl {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .ob-level input {
@@ -225,11 +225,11 @@
 .ob-acts {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
+  gap: var(--s2);
 }
 .ob-acts button {
-  height: 24px;
-  padding: 0 8px;
+  height: var(--h-md);
+  padding: 0 var(--s4);
   border-radius: var(--r);
 }
 .ob-add {
@@ -240,23 +240,23 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
+  gap: var(--s4) var(--s6);
   margin-top: 14px;
-  padding-top: 12px;
+  padding-top: var(--s5);
   border-top: 1px solid var(--grid);
 }
 .ob-field {
   display: inline-flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .ob-timing .ob-field {
   flex-direction: row;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: var(--s3);
+  font-size: var(--fs-md);
 }
 .ob-seg.days button {
   min-width: 42px;
@@ -268,9 +268,9 @@
 .ob-more summary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 0 2px;
-  font-size: 13px;
+  gap: var(--s4);
+  padding: var(--s4) 0 2px;
+  font-size: var(--fs-lg);
   cursor: pointer;
   list-style: none;
 }
@@ -280,7 +280,7 @@
 .ob-more summary::before {
   content: "▸";
   color: var(--dim);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   transition: transform 0.12s ease;
 }
 .ob-more[open] summary::before {
@@ -288,9 +288,9 @@
 }
 .ob-more summary em {
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   min-width: 18px;
-  padding: 0 5px;
+  padding: 0 var(--s2);
   text-align: center;
   color: var(--you-fg);
   background: var(--you);
@@ -298,18 +298,18 @@
 }
 .ob-sum {
   color: var(--dim);
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .ob-grid {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px 18px;
-  padding: 8px 0 4px 17px;
+  gap: var(--s5) 18px;
+  padding: var(--s4) 0 var(--s2) var(--s6);
 }
 .ob-range div {
   display: flex;
-  gap: 4px;
+  gap: var(--s2);
 }
 .ob-range input,
 .ob-grid input[type="number"] {
@@ -319,7 +319,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: var(--s5);
   margin-top: 14px;
 }
 .ob-run {
@@ -349,7 +349,7 @@
 .ob-rhead {
   display: flex;
   align-items: baseline;
-  gap: 14px;
+  gap: var(--s5);
 }
 .ob-rhead h2 {
   margin: 0;
@@ -357,7 +357,7 @@
 }
 .ob-when {
   color: var(--dim);
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 .ob-kpis {
@@ -371,7 +371,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 22px 10px 0;
+  padding: var(--s4) 22px var(--s4) 0;
   margin-right: 22px;
   border-right: 1px solid var(--grid);
 }
@@ -379,7 +379,7 @@
   border-right: none;
 }
 .ob-kpi span {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .ob-kpi b {
@@ -397,7 +397,7 @@
   line-height: 1.1;
 }
 .ob-kpi small {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .ob-kpis.sub {
@@ -406,15 +406,15 @@
   border-bottom: 1px dashed var(--grid);
 }
 .ob-kpis.sub .ob-kpi {
-  padding: 7px 18px 7px 0;
+  padding: var(--s3) 18px var(--s3) 0;
   margin-right: 18px;
 }
 .ob-kpis.sub .ob-kpi b {
-  font-size: 14px;
+  font-size: var(--fs-lg);
 }
 .ob-money {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
@@ -435,9 +435,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: var(--s4) var(--s5);
   margin-top: 16px;
-  padding: 8px 10px;
+  padding: var(--s4) var(--s4);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -445,12 +445,12 @@
 .ob-pick {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: var(--s2);
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .ob-pick select {
-  height: 26px;
+  height: var(--h-md);
 }
 .ob-pick.on select {
   color: var(--you);
@@ -459,18 +459,18 @@
 .ob-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 4px 0 10px;
-  font-size: 12px;
+  gap: var(--s2);
+  height: var(--h-md);
+  padding: 0 var(--s2) 0 var(--s4);
+  font-size: var(--fs-md);
   color: var(--you);
   background: var(--selbg);
   border-radius: var(--r);
 }
 .ob-chip button {
   width: 18px;
-  height: 18px;
-  font-size: 10px;
+  height: var(--h-sm);
+  font-size: var(--fs-xs);
   color: var(--you);
   background: none;
   border: none;
@@ -478,7 +478,7 @@
 }
 .ob-count {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
@@ -499,7 +499,7 @@
   border-bottom: 1px solid var(--line);
 }
 .ob-tabs button {
-  padding: 6px 10px;
+  padding: var(--s3) var(--s4);
   font: 12px var(--n);
   color: var(--dim);
   background: none;
@@ -515,18 +515,18 @@
 .ob-break table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 .ob-break th,
 .ob-break td {
-  padding: 5px 6px;
+  padding: var(--s2) var(--s3);
   text-align: left;
   font-weight: 400;
   border-bottom: 1px solid var(--grid);
 }
 .ob-break thead th {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .ob-break .n {
@@ -566,7 +566,7 @@
 .ob-empty {
   margin: 20px 0;
   color: var(--dim);
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 @media (max-width: 1000px) {
   .ob-leg {
@@ -612,18 +612,18 @@
 }
 .ob-split table.months td {
   min-width: 0;
-  padding: 5px 3px;
-  font-size: 10.5px;
+  padding: var(--s2) 3px;
+  font-size: var(--fs-xs);
   overflow: hidden;
   text-overflow: clip;
 }
 .ob-split table.months td.yr {
   width: 64px;
-  padding-left: 6px;
+  padding-left: var(--s3);
 }
 .ob-limit {
   display: flex;
-  gap: 4px;
+  gap: var(--s2);
 }
 .ob-strike input {
   width: 58px;
@@ -631,8 +631,8 @@
 .ob-check {
   flex-direction: row !important;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: var(--s3);
+  font-size: var(--fs-md);
   color: var(--fg);
 }
 .ob-check input {
@@ -641,6 +641,6 @@
 .ob-legfoot {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--s6);
 }
 
