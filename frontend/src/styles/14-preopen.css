@@ -6,12 +6,12 @@
   max-width: 1320px;
 }
 .preopen code {
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 .pobody {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--s6);
   margin-top: 18px;
   align-items: start;
 }
@@ -35,7 +35,7 @@
     "wd gap"
     "bar bar";
   row-gap: 1px;
-  padding: 8px 10px 9px 12px;
+  padding: var(--s4) var(--s4) var(--s4) var(--s5);
   font: inherit;
   text-align: left;
   color: var(--fg);
@@ -62,18 +62,18 @@
 .podays b {
   grid-area: date;
   font-family: var(--u);
-  font-size: 14px;
+  font-size: var(--fs-lg);
   font-weight: 600;
 }
 .podays small {
   grid-area: wd;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 .podays .gap {
   grid-area: gap;
   align-self: center;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
   color: var(--dim);
 }
@@ -116,7 +116,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 14px 16px 13px;
+  padding: var(--s5) var(--s6) var(--s5);
   border-left: 1px solid var(--grid);
   font-variant-numeric: tabular-nums;
 }
@@ -124,7 +124,7 @@
   border-left: 0;
 }
 .posum small {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .posum b {
@@ -138,16 +138,16 @@
   letter-spacing: -0.01em;
 }
 .posum .idx span {
-  font-size: 13px;
+  font-size: var(--fs-lg);
 }
 .posum .dim {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 .posum .adv .counts {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s4);
 }
 .posum .adv .pobreadth {
   flex: 1;
@@ -156,8 +156,8 @@
 
 .poday .controls {
   margin: 0;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5);
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -166,16 +166,16 @@
 .poday .controls input[type="search"] {
   width: 200px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 3px 7px;
+  padding: 3px var(--s3);
 }
 .poday .controls .hint {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--dim);
 }
 
@@ -187,21 +187,23 @@
 .potable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 .potable th {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 7px 10px;
-  font-size: 11px;
+  padding: var(--s3) var(--s4);
+  font-size: var(--fs-sm);
   font-weight: 500;
   text-align: left;
   white-space: nowrap;
   color: var(--dim);
-  background: var(--head);
-  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  /* An inset line, not a border: collapsed borders belong to the table and
+     drop out under a sticky header. */
+  box-shadow: inset 0 -1px 0 var(--line);
   cursor: pointer;
   user-select: none;
 }
@@ -209,7 +211,7 @@
   color: var(--fg);
 }
 .potable td {
-  padding: 5px 10px;
+  padding: var(--s2) var(--s4);
   text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid var(--grid);
@@ -231,13 +233,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--dim);
 }
 .potable td.n small {
   display: inline-block;
   min-width: 52px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   opacity: 0.8;
 }
 .potable tbody tr.click {
@@ -258,8 +260,8 @@
 .potable .gapcol {
   width: 22%;
   min-width: 120px;
-  padding-left: 4px;
-  padding-right: 14px;
+  padding-left: var(--s2);
+  padding-right: var(--s5);
   cursor: default;
 }
 .pogap {
@@ -292,22 +294,22 @@
   display: grid;
   grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
   gap: 28px;
-  padding: 14px 18px 16px;
+  padding: var(--s5) 18px var(--s6);
 }
 .pobook table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: var(--fs-sm);
 }
 .pobook th {
-  padding: 3px 8px;
+  padding: 3px var(--s4);
   font-weight: 500;
   color: var(--dim);
   text-align: left;
 }
 .pobook td {
   position: relative;
-  padding: 3px 8px;
+  padding: 3px var(--s4);
   width: 40%;
 }
 .pobook td.px {
@@ -345,15 +347,15 @@
   color: var(--mkt);
 }
 .pobook tr.iep small {
-  font-size: 10px;
+  font-size: var(--fs-xs);
 }
 .pobook dl {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 5px 16px;
+  gap: var(--s2) var(--s6);
   margin: 22px 0 0;
   align-content: start;
-  font-size: 12px;
+  font-size: var(--fs-md);
 }
 .pobook dt {
   color: var(--dim);
@@ -397,7 +399,7 @@
   }
   .pobook {
     grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
+    gap: var(--s2);
   }
   .potable .gapcol {
     display: none;
@@ -411,14 +413,14 @@
 .ob-sig {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 0 4px 17px;
+  gap: var(--s3);
+  padding: var(--s4) 0 var(--s2) var(--s6);
 }
 .ob-sighead {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: var(--s4);
+  font-size: var(--fs-md);
   color: var(--dim);
 }
 .ob-sighead span {
@@ -430,19 +432,19 @@
 .ob-conds {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s4);
 }
 .ob-cond {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  padding-left: 8px;
+  gap: var(--s3);
+  padding-left: var(--s4);
   border-left: 2px solid var(--line);
 }
 .ob-operand {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--s2);
 }
 .ob-operand input {
   width: 52px;
@@ -451,8 +453,8 @@
   width: 80px;
 }
 .ob-x {
-  height: 24px;
-  padding: 0 8px;
+  height: var(--h-md);
+  padding: 0 var(--s4);
   font: 12px var(--n);
   color: var(--dim);
   background: transparent;
