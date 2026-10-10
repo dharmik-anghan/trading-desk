@@ -1,0 +1,646 @@
+/* ============================================================
+   Options backtest
+   The desk's tokens, one page's layout. Legs read like an order
+   ticket - one line each, the side on a coloured edge. Labels are
+   sentence case: this page is read, not scanned for headings.
+   ============================================================ */
+.ob {
+  max-width: 1240px;
+}
+.ob h1,
+.ob h2,
+.ob figcaption,
+.ob table.months caption {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ob-top {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+.bt.ob > .ob-top h1 {
+  font-family: var(--n);
+  font-size: 22px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ob-scope {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.ob-to {
+  color: var(--dim);
+  font-size: 12px;
+}
+.ob select,
+.ob input {
+  height: 28px;
+  padding: 0 7px;
+  font: 12px var(--n);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.ob select:focus-visible,
+.ob input:focus-visible,
+.ob button:focus-visible,
+.ob summary:focus-visible,
+.ob-break tr:focus-visible {
+  outline: 2px solid var(--you);
+  outline-offset: 1px;
+}
+.ob-error {
+  color: var(--dn);
+  font-size: 12px;
+}
+
+/* the strategy */
+.ob-strategy {
+  margin-top: 18px;
+  padding: 14px 16px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.ob-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ob-presets button,
+.ob-add,
+.ob-reset,
+.ob-acts button {
+  height: 26px;
+  padding: 0 10px;
+  font: 12px var(--n);
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.ob-presets button:hover,
+.ob-add:hover,
+.ob-reset:hover,
+.ob-acts button:hover {
+  color: var(--fg);
+  border-color: var(--you);
+}
+.ob-saved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.ob-saved select,
+.ob-saved input {
+  height: 26px;
+  font: 12px var(--n);
+}
+.ob-saved input {
+  width: 160px;
+}
+.ob-presets .ob-saved button:not(:disabled) {
+  color: var(--fg);
+}
+.ob-presets .ob-saved button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ob-legs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.ob-leg {
+  display: grid;
+  grid-template-columns: 18px auto auto 78px auto auto auto auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--grid);
+  border-left: 3px solid var(--you);
+  border-radius: var(--r);
+}
+.ob-leg.sell {
+  border-left-color: var(--sell);
+}
+.ob-n {
+  color: var(--dim);
+  font-size: 12px;
+  text-align: center;
+}
+.ob-seg {
+  display: inline-flex;
+}
+.ob-seg button {
+  height: 28px;
+  min-width: 40px;
+  padding: 0 10px;
+  font: 12px var(--n);
+  color: var(--dim);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  margin-left: -1px;
+  cursor: pointer;
+}
+.ob-seg button:first-child {
+  margin-left: 0;
+  border-radius: var(--r) 0 0 var(--r);
+}
+.ob-seg button:last-child {
+  border-radius: 0 var(--r) var(--r) 0;
+}
+.ob-seg button.on {
+  position: relative;
+  color: var(--you-fg);
+  background: var(--you);
+  border-color: var(--you);
+}
+.ob-seg button.on + button.on {
+  border-left-color: var(--panel);
+}
+.ob-seg.side button.on:last-child {
+  color: var(--sell-fg);
+  background: var(--sell);
+  border-color: var(--sell);
+}
+.ob-lots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.ob-lots input {
+  width: 44px;
+}
+/* "at least N days left" beside the expiry picker: a small box, as the lots are. */
+.ob-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.ob-strike .ob-left input {
+  width: 44px;
+}
+.ob-strike {
+  display: flex;
+  gap: 5px;
+}
+.ob-strike select {
+  flex: 1;
+}
+.ob-strike input {
+  width: 64px;
+}
+.ob-level {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ob-lbl {
+  font-size: 11px;
+  color: var(--dim);
+}
+.ob-level input {
+  width: 52px;
+}
+.ob-level.none select {
+  color: var(--dim);
+}
+.ob-acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.ob-acts button {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r);
+}
+.ob-add {
+  align-self: flex-start;
+  border-style: dashed;
+}
+.ob-timing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+}
+.ob-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.ob-timing .ob-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.ob-seg.days button {
+  min-width: 42px;
+}
+.ob-more {
+  margin-top: 10px;
+  border-top: 1px solid var(--grid);
+}
+.ob-more summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0 2px;
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+.ob-more summary::-webkit-details-marker {
+  display: none;
+}
+.ob-more summary::before {
+  content: "▸";
+  color: var(--dim);
+  font-size: 11px;
+  transition: transform 0.12s ease;
+}
+.ob-more[open] summary::before {
+  transform: rotate(90deg);
+}
+.ob-more summary em {
+  font-style: normal;
+  font-size: 11px;
+  min-width: 18px;
+  padding: 0 5px;
+  text-align: center;
+  color: var(--you-fg);
+  background: var(--you);
+  border-radius: var(--r);
+}
+.ob-sum {
+  color: var(--dim);
+  font-size: 12px;
+}
+.ob-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  padding: 8px 0 4px 17px;
+}
+.ob-range div {
+  display: flex;
+  gap: 4px;
+}
+.ob-range input,
+.ob-grid input[type="number"] {
+  width: 72px;
+}
+.ob-go {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+.ob-run {
+  height: 34px;
+  padding: 0 22px;
+  font: 600 13px var(--n);
+  color: var(--you-fg);
+  background: var(--you);
+  border: none;
+  border-radius: var(--r);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.ob-run:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* the results */
+.ob-results {
+  margin-top: 26px;
+  transition: opacity 0.2s ease;
+}
+.ob-results.stale {
+  opacity: 0.45;
+}
+.ob-rhead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.ob-rhead h2 {
+  margin: 0;
+  font: 600 17px var(--n);
+}
+.ob-when {
+  color: var(--dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ob-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.ob-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 22px 10px 0;
+  margin-right: 22px;
+  border-right: 1px solid var(--grid);
+}
+.ob-kpi:last-child {
+  border-right: none;
+}
+.ob-kpi span {
+  font-size: 11px;
+  color: var(--dim);
+}
+.ob-kpi b {
+  font: 600 17px var(--n);
+  font-variant-numeric: tabular-nums;
+}
+.ob-kpi b.up {
+  color: var(--up);
+}
+.ob-kpi b.dn {
+  color: var(--dn);
+}
+.ob-kpi.hero b {
+  font-size: 28px;
+  line-height: 1.1;
+}
+.ob-kpi small {
+  font-size: 11px;
+  color: var(--dim);
+}
+.ob-kpis.sub {
+  margin-top: 10px;
+  border-top: none;
+  border-bottom: 1px dashed var(--grid);
+}
+.ob-kpis.sub .ob-kpi {
+  padding: 7px 18px 7px 0;
+  margin-right: 18px;
+}
+.ob-kpis.sub .ob-kpi b {
+  font-size: 14px;
+}
+.ob-money {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.ob-money b {
+  font-weight: 600;
+  color: var(--fg);
+}
+.ob-money b.up {
+  color: var(--up);
+}
+.ob-money b.dn {
+  color: var(--dn);
+}
+.ob-filter {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 16px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.ob-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.ob-pick select {
+  height: 26px;
+}
+.ob-pick.on select {
+  color: var(--you);
+  border-color: var(--you);
+}
+.ob-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px 0 10px;
+  font-size: 12px;
+  color: var(--you);
+  background: var(--selbg);
+  border-radius: var(--r);
+}
+.ob-chip button {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  color: var(--you);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.ob-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.ob-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 8px;
+}
+.ob-break {
+  margin-top: 20px;
+}
+.ob-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+}
+.ob-tabs button {
+  padding: 6px 10px;
+  font: 12px var(--n);
+  color: var(--dim);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.ob-tabs button.on {
+  color: var(--fg);
+  border-bottom-color: var(--you);
+}
+.ob-break table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ob-break th,
+.ob-break td {
+  padding: 5px 6px;
+  text-align: left;
+  font-weight: 400;
+  border-bottom: 1px solid var(--grid);
+}
+.ob-break thead th {
+  font-size: 11px;
+  color: var(--dim);
+}
+.ob-break .n {
+  text-align: right;
+}
+.ob-break tbody tr {
+  cursor: pointer;
+}
+.ob-break tbody tr:hover > * {
+  background: var(--selbg);
+}
+.ob-break tbody tr.on > * {
+  background: var(--selbg);
+  font-weight: 600;
+}
+.ob-break td.bar {
+  position: relative;
+  min-width: 110px;
+}
+.ob-break td.bar i {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  bottom: 5px;
+  opacity: 0.18;
+  border-radius: var(--r);
+}
+.ob-break td.bar.up i {
+  background: var(--up);
+}
+.ob-break td.bar.dn i {
+  background: var(--dn);
+}
+.ob-break td.bar span {
+  position: relative;
+}
+.ob-empty {
+  margin: 20px 0;
+  color: var(--dim);
+  font-size: 13px;
+}
+@media (max-width: 1000px) {
+  .ob-leg {
+    grid-template-columns: 18px auto auto 78px 1fr;
+  }
+  .ob-strike,
+  .ob-level,
+  .ob-acts {
+    grid-column: span 2;
+  }
+  .ob-split {
+    grid-template-columns: 1fr;
+  }
+  .ob-scope {
+    margin-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-results,
+  .ob-more summary::before {
+    transition: none;
+  }
+}
+
+.ob-break th {
+  background: none !important;
+}
+.ob .ocurve figcaption,
+.ob .otrades header h3,
+.ob .otrades thead th {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The month grid shares its row with the breakdown: it shrinks to its column
+   rather than running under the table beside it. */
+.ob-split table.months {
+  width: 100%;
+  table-layout: fixed;
+}
+.ob-split table.months th:first-child {
+  width: 40px;
+}
+.ob-split table.months td {
+  min-width: 0;
+  padding: 5px 3px;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.ob-split table.months td.yr {
+  width: 64px;
+  padding-left: 6px;
+}
+.ob-limit {
+  display: flex;
+  gap: 4px;
+}
+.ob-strike input {
+  width: 58px;
+}
+.ob-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg);
+}
+.ob-check input {
+  height: auto;
+}
+.ob-legfoot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+

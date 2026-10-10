@@ -1,0 +1,292 @@
+/* ── Options backtesting ───────────────────────────────────────────────────
+   Built on the .bt page: same form, same figures, same trade log. What is new
+   is drawn in real pixels (no stretched viewBox), so axis text keeps its shape
+   and a hover lands on the minute under the pointer. Calls and puts are told
+   apart by line style and a label, never by colour - --up/--dn stay P&L only. */
+.obt .fine {
+  margin: 10px 0 0;
+  max-width: 60ch;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.obt .note {
+  margin-top: 14px;
+}
+
+.obt figure {
+  margin: 20px 0 0;
+  padding: 10px 0 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.obt figcaption {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 0 12px 6px;
+  font-family: var(--u);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.obt figcaption .readout {
+  margin-left: auto;
+  font-family: var(--n);
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.obt svg .grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+.obt svg .zero,
+.obt .ocurve .base {
+  stroke: var(--dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.obt svg .axis {
+  fill: var(--dim);
+  font-family: var(--n);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.obt svg .cross {
+  stroke: var(--dim);
+  stroke-width: 1;
+  pointer-events: none;
+}
+.obt .ocurve .eq {
+  fill: none;
+  stroke: var(--you);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.obt .ocurve .underwater {
+  fill: var(--dn);
+  opacity: 0.07;
+  stroke: none;
+}
+.obt .ocurve .dot {
+  fill: var(--you);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+
+/* Net by month. The cell's strength (--s) is its size against the largest month. */
+.obt table.months {
+  margin-top: 20px;
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.obt table.months caption {
+  text-align: left;
+  padding-bottom: 6px;
+  font-family: var(--u);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.obt table.months th {
+  font-family: var(--u);
+  font-weight: 500;
+  font-size: 10px;
+  color: var(--dim);
+  padding: 2px 6px;
+}
+.obt table.months td {
+  min-width: 52px;
+  padding: 5px 6px;
+  text-align: right;
+  border-radius: var(--r);
+  color: var(--fg);
+}
+.obt table.months td.up {
+  background: color-mix(in srgb, var(--up) var(--s), transparent);
+}
+.obt table.months td.dn {
+  background: color-mix(in srgb, var(--dn) var(--s), transparent);
+}
+.obt table.months td.none {
+  background: var(--grid);
+  opacity: 0.4;
+}
+.obt table.months td.yr {
+  background: none;
+  font-weight: 600;
+  padding-left: 12px;
+}
+.obt table.months td.yr.up {
+  color: var(--up);
+}
+.obt table.months td.yr.dn {
+  color: var(--dn);
+}
+
+.obt .otrades td.stopped {
+  color: var(--fg);
+  font-weight: 600;
+}
+.obt .otrades tr {
+  cursor: pointer;
+}
+.obt .otrades tr.picked td {
+  background: var(--selbg);
+}
+
+/* One trade, replayed. */
+.obt .replay {
+  margin-top: 24px;
+  padding: 12px 0 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--you);
+  border-radius: var(--r);
+}
+.obt .replay > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+}
+.obt .replay h3 {
+  margin: 0;
+  font-family: var(--u);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.obt .replay > header button {
+  margin-left: auto;
+}
+.obt .replay .dim,
+.obt .replay .bad {
+  padding: 0 12px;
+}
+.obt .replay .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 12px 2px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.obt .replay .legend .time {
+  color: var(--dim);
+  min-width: 80px;
+}
+.obt .replay .legend .key i {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-top: 2px solid var(--fg);
+}
+.obt .replay .legend .key.pe i {
+  border-top-style: dashed;
+}
+.obt .replay .legend .key.spot i {
+  border-top-color: var(--mkt);
+}
+.obt .replay .leg {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.obt .replay .pe .leg {
+  stroke-dasharray: 5 3;
+}
+.obt .replay .stopline {
+  stroke: var(--dim);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.obt .replay .tag {
+  fill: var(--dim);
+  font-size: 10px;
+}
+.obt .replay .sold {
+  fill: var(--sell);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+.obt .replay .out {
+  stroke: var(--panel);
+  stroke-width: 2;
+  fill: var(--dim);
+}
+.obt .replay .out.up {
+  fill: var(--up);
+}
+.obt .replay .out.dn {
+  fill: var(--dn);
+}
+.obt .replay .spot .index {
+  fill: none;
+  stroke: var(--mkt);
+  stroke-width: 2;
+}
+.obt .replay .spot .strike {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.obt .replay .events {
+  margin: 8px 12px 0;
+  padding-left: 18px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A trade row's legs, one line each. */
+.obt .otrades td.legcells {
+  white-space: normal;
+}
+.obt .legline {
+  display: grid;
+  grid-template-columns: 14px 104px 118px 96px 72px;
+  gap: 6px;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+.obt .legline i {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--dim);
+}
+.obt .legline.sell i {
+  color: var(--sell);
+}
+.obt .legline .n {
+  text-align: right;
+}
+.obt .legline .stopped {
+  font-weight: 600;
+}
+
+.obt .replay .buy .leg {
+  stroke-width: 1.25;
+  opacity: 0.75;
+}
+.obt .replay .legend .key.buy i {
+  border-top-width: 1px;
+}
+.obt .replay .bought {
+  fill: var(--you);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+

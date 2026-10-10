@@ -1,0 +1,554 @@
+/* Workstation shell. Panels are the unit: a header strip, a scrolling body,
+   a hairline border. Density is the point — this is a screen you sit at. */
+
+/* Open structures is the view; the chain is reference material below it. */
+.ws {
+  height: 100%;
+  display: grid;
+  gap: 5px;
+  padding: 5px;
+  /* Three columns on the options desk: the rail, a chart, and the book.
+     It was two, with the structures and the chain stacked in one wide column -
+     which left a single 370px card floating in 1,150px of nothing, and left
+     the desk with no chart at all. The middle is the chart now, which is also
+     what the perpetuals desk does, so both read the same way.
+
+     The rail is wider than its original 286px because the alert column went
+     into the header and the positions table was being cut off. */
+  grid-template-columns: 340px minmax(0, 1fr) 380px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "tb tb tb"
+    "left middle baskets"
+    "left middle chain";
+}
+/* The perpetuals desk has no book column: its positions live in the rail, and
+   a third column of nothing would be worse than the two it has. */
+.ws.perps {
+  grid-template-columns: 340px minmax(0, 1fr);
+  grid-template-areas:
+    "tb tb"
+    "left middle"
+    "left middle";
+}
+.a-structure {
+  grid-area: middle;
+}
+/* Everything in a chart body except the candles keeps its own height; the chart
+   takes what is left, because `.candlewrap` already grows into it. Structure
+   can be switched on over any chart now, so these belong to the body rather
+   than to the desk that used to be the only one with a reading. */
+.chartpb .reading-structure,
+.chartpb .volcaveat,
+.chartpb .chartnote,
+.chartpb .frames {
+  flex: none;
+}
+.chartpb .reading-structure,
+.chartpb .volcaveat {
+  padding: 0 5px;
+}
+
+/* The size row on a chart, whichever desk it is: one tab per size, and with
+   structure on, each tab also carries the trend that size is in. */
+.frames {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.frames {
+  align-items: center;
+}
+/* The trend each size is in, beside its name, when structure is on. */
+.frames .trend {
+  font-style: normal;
+  font-size: 9px;
+  margin-left: 4px;
+}
+.frames .trend.rise { color: var(--you); }
+.frames .trend.fall { color: var(--dim); }
+.frames .trend.mixed { color: var(--mkt); }
+.frames .trend.none { color: var(--line); }
+/* On the selected tab the mark sits on the accent, so it takes the tab's ink. */
+.frames .xbtn.on .trend { color: inherit; }
+.frames .tally {
+  margin-left: 8px;
+  font-family: var(--u);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.frames .tally .rise { color: var(--you); }
+.kpick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.kpick input {
+  width: 40px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 1px 3px;
+}
+.ph .agree {
+  text-transform: capitalize;
+}
+.ph .agree.mixed {
+  color: var(--mkt);
+  text-transform: none;
+}
+.reading-structure {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.reading-structure b {
+  color: var(--fg);
+  font-family: var(--u);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ph {
+  min-height: calc(var(--h-md) + 4px);
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  padding: 0 var(--s4);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ph::-webkit-scrollbar {
+  display: none;
+}
+.ph h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.012em;
+}
+.ph .sub {
+  color: var(--dim);
+  font-weight: 400;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ph .sp {
+  flex: 1;
+}
+.pb {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+#left {
+  grid-area: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 0;
+  min-width: 0;
+  /* Scrolls inside itself. Without this the rail's panels stack past the
+     bottom of the window, the whole grid grows with them, and the columns
+     beside it - which have nothing more to show - leave a screen-high band of
+     empty page under them. The desk is meant to fit the window, so the column
+     with more to say than room scrolls rather than the page. */
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+#left > .panel {
+  flex: none;
+}
+#left > .grow {
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+.a-chain {
+  grid-area: chain;
+}
+.a-alerts {
+}
+
+/* ---------- market context strip ----------
+   Sits under the toolbar, describing the underlying rather than the chain -
+   which is where it used to live, and which is collapsed most of the time. */
+.context {
+  display: grid;
+  /* Content-width columns packed from the left, not eight equal thirds of a
+     wide screen: stretched to 1fr each, every cell was mostly air. */
+  grid-template-columns: repeat(auto-fit, minmax(104px, max-content));
+  border-top: 1px solid var(--line);
+  background: var(--head);
+}
+.cx {
+  padding: 5px 14px;
+  border-right: 1px solid var(--grid);
+  min-width: 0;
+}
+.cx:last-child {
+  border-right: 0;
+}
+.cx i {
+  display: block;
+  font-style: normal;
+  color: var(--dim);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cx b {
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+}
+/* strike-valued figures carry the market hue, per the colour law */
+.cx.k b {
+  color: var(--mkt);
+}
+/* shut, the panel is just its header strip */
+.a-chain.shut {
+  flex: none;
+}
+.disclose {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.012em;
+  color: var(--fg);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.disclose:hover {
+  color: var(--you);
+}
+.disclose span {
+  color: var(--dim);
+  font-size: 10px;
+}
+.a-baskets {
+  grid-area: baskets;
+}
+
+/* ---------- toolbar ---------- */
+.topbar {
+  grid-area: tb;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.tb {
+  display: flex;
+  align-items: stretch;
+  padding: 0 12px;
+  flex-wrap: wrap;
+  min-height: 52px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  font-family: var(--u);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  padding-right: 14px;
+}
+.tbk {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.1;
+  padding: 7px 14px;
+  border-left: 1px solid var(--grid);
+  min-width: 0;
+}
+.tbk small {
+  font-family: var(--u);
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  margin-bottom: 3px;
+}
+.tbk b {
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: 13.5px;
+}
+.tbk.spot b {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.tbk.spot .chg {
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 3px;
+}
+.tbk.hero b {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1;
+}
+.tbsp {
+  flex: 1;
+  min-width: 8px;
+}
+/* The P&L figures are one family. One divider opens the group, one marks off
+   the sum; none between the two parts that make it up. */
+.tbgroup {
+  display: flex;
+  align-items: stretch;
+  border-left: 1px solid var(--grid);
+  min-width: 0;
+}
+.tbgroup > .tbk {
+  border-left: 0;
+}
+.tbgroup > .tbk.hero {
+  border-left: 1px solid var(--grid);
+}
+.tbtools {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 14px;
+  border-left: 1px solid var(--grid);
+}
+
+.feed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--up);
+  flex: none;
+}
+.dot.off {
+  background: var(--mkt);
+}
+.dot.bad {
+  background: var(--dn);
+}
+
+/* ---------- controls ----------
+   One button system. Heights come from --h-sm / --h-md, corners from --r,
+   hover is --raise; the only filled states are the colour-law ones. */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--panel);
+}
+.seg button {
+  border: 0;
+  background: none;
+  height: calc(var(--h-md) - 2px);
+  padding: 0 var(--s5);
+  cursor: pointer;
+  color: var(--dim);
+  border-right: 1px solid var(--line);
+  font-family: var(--u);
+  white-space: nowrap;
+}
+.seg button:last-child {
+  border-right: 0;
+}
+.seg button:hover {
+  color: var(--fg);
+  background: var(--raise);
+}
+.seg button[aria-pressed="true"] {
+  background: var(--you);
+  color: var(--you-fg);
+  font-weight: 600;
+}
+.seg.sm button {
+  height: calc(var(--h-sm) - 2px);
+  padding: 0 var(--s4);
+  font-size: var(--fs-sm);
+}
+
+.tbtn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: var(--r);
+  height: var(--h-md);
+  padding: 0 var(--s5);
+  cursor: pointer;
+  color: var(--dim);
+  font-family: var(--u);
+}
+.tbtn:hover {
+  background: var(--raise);
+  color: var(--fg);
+}
+.xbtn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: var(--r);
+  height: var(--h-sm);
+  padding: 0 var(--s4);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--dim);
+  font-family: var(--u);
+}
+.xbtn:hover {
+  background: var(--raise);
+  color: var(--fg);
+}
+.xbtn.danger:hover {
+  border-color: var(--dn);
+  color: var(--dn);
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  align-items: center;
+  gap: var(--s4);
+}
+.field label {
+  color: var(--dim);
+}
+.field input,
+.field select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  height: var(--h-md);
+  padding: 0 var(--s3);
+  width: 100%;
+}
+.field input:focus,
+.field select:focus {
+  outline: 0;
+  border-color: var(--you);
+}
+
+/* ---------- tables ---------- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  color: var(--dim);
+  font-weight: 500;
+  text-align: right;
+  padding: var(--s2) 7px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+}
+td {
+  padding: 2.5px 7px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--grid);
+  font-size: 12px;
+}
+th.l,
+td.l {
+  text-align: left;
+}
+tbody tr:hover td {
+  background-color: var(--raise);
+}
+tr.total td {
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+  background: var(--head);
+}
+
+.empty {
+  padding: 11px;
+  margin: 0;
+  color: var(--dim);
+  line-height: 1.45;
+}
+.err {
+  padding: 9px 11px;
+  margin: 0;
+  color: var(--dn);
+  line-height: 1.45;
+  border-bottom: 1px solid var(--grid);
+}
+
+/* ---------- section rule ---------- */
+.sec {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 9px 4px;
+  color: var(--fg);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--head);
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+}
+.sec .dim {
+  font-weight: 400;
+}
+.irow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 9px;
+}
+.irow + .irow {
+  margin-top: 2px;
+  font-size: 10.5px;
+}
+.irow.dim span:last-child {
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+}
+

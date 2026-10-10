@@ -1,0 +1,161 @@
+/* ---------- following the broker ----------
+   What Fyers executed that the structures should know about. Closes land on
+   their own; new positions wait here to be placed. Colour stays with its law:
+   --up/--dn only on the banked figures, --sell/--you only on the side. */
+.fills {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+}
+.fills-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 6px;
+}
+.fills-h .sp {
+  flex: 1;
+}
+.fills-ok {
+  margin: 0 0 4px;
+}
+.fills-box {
+  margin: 6px 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel);
+}
+.fills-box.pend {
+  border-left-color: var(--you);
+}
+.fills-box.warn {
+  border-left-color: var(--mkt);
+}
+.fills-box > b {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--u);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.fills-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+.fills-row .sell {
+  color: var(--sell);
+  font-weight: 600;
+  min-width: 34px;
+}
+.fills-row .buy {
+  color: var(--you);
+  font-weight: 600;
+  min-width: 34px;
+}
+.fills .why {
+  margin: 4px 0 0;
+  line-height: 1.45;
+}
+.fills-act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+.fills-act select,
+.fills-act input,
+.addleg input,
+.addleg select {
+  font: inherit;
+  padding: 3px 6px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.tbtn.go {
+  color: var(--you-fg);
+  background: var(--you);
+  border-color: var(--you);
+}
+
+.closed-list {
+  margin-top: 10px;
+}
+.closed-list table {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail table.shut td {
+  color: var(--dim);
+}
+.detail table.shut td.up,
+.detail table.shut td.dn {
+  color: inherit;
+}
+.detail table.shut td.up {
+  color: var(--up);
+}
+.detail table.shut td.dn {
+  color: var(--dn);
+}
+
+/* A structure's story, oldest first: one entry per moment. */
+.story {
+  list-style: none;
+  margin: 0;
+  padding: 2px 9px 6px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.story > li {
+  padding: 5px 0 5px 10px;
+  border-left: 2px solid var(--line);
+}
+.story > li.adjusted {
+  border-left-color: var(--you);
+}
+.story > li.closed {
+  border-left-color: var(--dim);
+}
+.story-h {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.story ul {
+  margin: 3px 0 0;
+  padding-left: 14px;
+  color: var(--dim);
+}
+
+.addleg {
+  padding: 6px 9px;
+}
+.addleg.open {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.addleg .sym {
+  width: 210px;
+}
+.addleg input[type="number"] {
+  width: 80px;
+}
+.addleg .note {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  font-size: 11px;
+}
+

@@ -1,0 +1,351 @@
+/* ===========================================================================
+   The perpetuals desk
+   =========================================================================== */
+
+/* The chart takes the whole middle column: with no chain and no baskets there is
+   nothing to share it with, and a price chart is the one thing on this desk that
+   rewards the space. */
+/* The perpetuals chart fills the middle column, which on that desk is the only
+   column beside the rail. */
+.a-chart {
+  grid-area: middle;
+}
+.a-watch {
+  min-height: 0;
+}
+
+/* ---------- instrument rail ---------- */
+.a-watch tr {
+  cursor: pointer;
+}
+.a-watch tr.sel td {
+  background: var(--selbg);
+}
+.a-watch tr.sel td.l {
+  box-shadow: inset 3px 0 0 var(--you);
+}
+.a-watch .wname {
+  font-family: var(--n);
+  font-weight: 500;
+}
+.a-watch .wsym {
+  font-family: var(--u);
+  font-size: 10.5px;
+  margin-left: 6px;
+  letter-spacing: 0.02em;
+}
+.a-watch .wpx,
+.a-watch .wchg {
+  text-align: right;
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.a-watch .wpx {
+  font-weight: 600;
+}
+/* A price with no recent tick behind it is not a live price, and on a desk that
+   runs overnight that is the failure worth seeing. */
+.a-watch .wstale {
+  color: var(--mkt);
+  margin-left: 4px;
+  font-weight: 700;
+}
+
+/* ---------- candles ---------- */
+.chartpb {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  padding: 4px 2px 0;
+}
+
+/* Where the bars came from, when that is worth a word. Quiet: it is true of
+   most sizes on the structure chart, so it is a caption rather than a warning. */
+.chartnote {
+  margin: 0;
+  flex: none;
+  padding: 0 4px;
+  font-family: var(--u);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.chartfoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px 6px;
+  font-family: var(--u);
+  font-size: 10.5px;
+  border-top: 1px solid var(--grid);
+}
+/* A stream that has stopped means every price on screen is a memory. */
+.streamdown {
+  color: var(--dn);
+}
+.frames .xbtn.on {
+  background: var(--you);
+  color: var(--you-fg);
+  border-color: var(--you);
+}
+
+/* The desk title doubles as the switch, so it has to look pressable without
+   turning the top-left corner into a button. */
+.deskswitch {
+  font: inherit;
+  font-family: var(--u);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  gap: 6px;
+}
+.deskswitch:hover {
+  color: var(--you);
+}
+.deskswitch:focus-visible {
+  outline: 2px solid var(--you);
+  outline-offset: 2px;
+  border-radius: var(--r);
+}
+.swapmark {
+  font-size: 11px;
+  opacity: 0.55;
+}
+.deskswitch:hover .swapmark {
+  opacity: 1;
+}
+
+/* ---------- candle pan and zoom ---------- */
+.candlewrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* The chart draws on its own canvas and sizes itself to this box. */
+.lwchart {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 160px;
+}
+.reading .xbtn {
+  align-self: center;
+}
+
+/* ---------- news topic filter ----------
+   Reuses .fbar, so the two filters on this panel look and behave alike. */
+
+/* "All" clears rather than selects, so it must not look like another topic. */
+.fbar .fclear {
+  margin-left: auto;
+  border-style: dashed;
+}
+
+/* The publisher's beat on a row, shown only when the filter is off or wide -
+   with one topic selected every row would carry the same word. */
+.ntopic {
+  font-family: var(--u);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border: 1px solid var(--grid);
+  border-radius: var(--r);
+  padding: 0 3px;
+}
+
+/* ---------- perpetual positions ----------
+   Direction in words rather than a sign: "Short 0.01" reads faster than
+   "-0.01" and cannot be mistaken for a loss. */
+.pside {
+  font-family: var(--u);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--r);
+  padding: 0 3px;
+}
+/* The selection hue for long and the sell hue for short: these are your
+   positions, not market facts, and short is the side the desk already draws in
+   rose everywhere else. */
+.pside.long {
+  color: var(--you);
+  box-shadow: inset 0 0 0 1px var(--you);
+}
+.pside.short {
+  color: var(--sell);
+  box-shadow: inset 0 0 0 1px var(--sell);
+}
+.a-positions td,
+.a-positions th {
+  white-space: nowrap;
+}
+
+/* A stop the exchange holds. Stated plainly in a column, because on a leveraged
+   position its absence is the first thing worth knowing. */
+.prot {
+  font-family: var(--u);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.prot.on {
+  color: var(--up);
+}
+.protform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 9px 8px;
+  border-top: 1px solid var(--grid);
+  font-size: 11.5px;
+}
+.protform input {
+  font: inherit;
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  width: 92px;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 2px 4px;
+}
+.protform input:focus-visible {
+  outline: 2px solid var(--you);
+  outline-offset: 1px;
+}
+
+/* ---------- order ticket ----------
+   A column of labelled fields rather than a grid: it is read top to bottom once,
+   and every row is a decision rather than a value to compare with its neighbour. */
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 9px;
+}
+.ticket label {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.ticket label small {
+  font-family: var(--u);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.ticket input,
+.ticket select {
+  font: inherit;
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 3px 5px;
+  min-width: 0;
+}
+.ticket input:focus-visible,
+.ticket select:focus-visible {
+  outline: 2px solid var(--you);
+  outline-offset: 1px;
+}
+
+/* Side is the most expensive thing to get wrong here, so it is two large targets
+   rather than a dropdown, in the hues the desk already uses for buy and sell. */
+.tside {
+  display: flex;
+  gap: 4px;
+}
+.tside button {
+  flex: 1;
+  font: inherit;
+  font-family: var(--u);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--dim);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 4px 0;
+  cursor: pointer;
+}
+.tside button.on.buy {
+  background: var(--you);
+  color: var(--you-fg);
+  border-color: var(--you);
+}
+.tside button.on.sell {
+  background: var(--sell);
+  color: var(--sell-fg);
+  border-color: var(--sell);
+}
+.tside button:focus-visible {
+  outline: 2px solid var(--you);
+  outline-offset: -2px;
+}
+
+/* What the order is worth, shown while typing rather than after committing:
+   "0.002" means nothing and "168 USDT" means something. */
+.tnotional {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  align-items: baseline;
+  gap: 6px;
+  padding-top: 2px;
+  border-top: 1px solid var(--grid);
+}
+.tnotional small {
+  font-family: var(--u);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.tnotional b {
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.xbtn.place {
+  padding: 5px 0;
+  font-family: var(--u);
+  letter-spacing: 0.03em;
+}
+
+.outcome .ok {
+  color: var(--up);
+}
+.outcome .bad {
+  color: var(--dn);
+}
+.outcome .sent {
+  padding: 6px 9px;
+  margin: 0;
+  color: var(--up);
+}
+
+/* A rule the venue imposes, stated where it applies rather than discovered by a
+   rejection. Turns to the loss hue when the value breaks it. */
+.tnote {
+  margin: 0;
+  padding: 0 0 0 84px;
+  font-family: var(--u);
+  font-size: 10.5px;
+  color: var(--dim);
+  line-height: 1.35;
+}
+.tnote.bad {
+  color: var(--dn);
+}
+

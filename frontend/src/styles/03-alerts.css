@@ -1,0 +1,151 @@
+/* ---------- alert severities ---------- */
+.sev {
+  display: inline-block;
+  min-width: 46px;
+  flex: none;
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 4px;
+  border-radius: var(--r);
+  font-family: var(--u);
+}
+.sev.risk {
+  background: color-mix(in srgb, var(--dn) 20%, transparent);
+  color: var(--dn);
+}
+.sev.warn {
+  background: color-mix(in srgb, var(--mkt) 20%, transparent);
+  color: var(--mkt);
+}
+.sev.target {
+  background: color-mix(in srgb, var(--up) 20%, transparent);
+  color: var(--up);
+}
+.sev.info {
+  background: var(--grid);
+  color: var(--dim);
+}
+/* One alert: the message on its own line at full width, then a quiet meta
+   row. The severity is a left edge as well as a chip, so the log can be
+   scanned for red without reading any of it. */
+.alert {
+  padding: 5px 9px 6px;
+  border-bottom: 1px solid var(--grid);
+  border-left: 3px solid transparent;
+}
+.alert.risk {
+  border-left-color: var(--dn);
+}
+.alert.warn {
+  border-left-color: var(--mkt);
+}
+.alert.target {
+  border-left-color: var(--up);
+}
+.alert.info {
+  border-left-color: var(--line);
+}
+.amsg {
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+.ameta {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--dim);
+  font-size: 10.5px;
+  min-width: 0;
+}
+.atime {
+  margin-left: auto;
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.a-alerts .pb {
+  min-height: 110px;
+}
+/* the thresholds are a footer, not the content - keep them low */
+.lim.tight td {
+  padding: 2px 9px;
+  font-size: 11.5px;
+}
+.lim.tight input {
+  width: 74px;
+  padding: 0 4px;
+}
+
+/* a blocking failure is the one thing in the toolbar allowed to shout */
+.feed.bad {
+  color: var(--dn);
+}
+.feedtext {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+
+/* The card header doubles as the disclosure for the full analysis. */
+button.card-h {
+  width: 100%;
+  background: none;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 1px solid var(--grid);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+button.card-h:hover {
+  background: var(--selbg);
+}
+.caret {
+  color: var(--dim);
+  font-size: 10px;
+  flex: none;
+}
+.detail .sec {
+  border-top: 1px solid var(--grid);
+}
+/* Four greeks, two lines each: unit-bearing label, then the figure. Wraps to
+   two per row rather than squeezing four into a narrow card. */
+.greeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  border-bottom: 1px solid var(--grid);
+}
+.greeks > div {
+  padding: 7px 10px;
+  border-right: 1px solid var(--grid);
+  min-width: 0;
+}
+.greeks > div:last-child {
+  border-right: 0;
+}
+.greeks small {
+  display: block;
+  color: var(--dim);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.greeks b {
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+/* an expanded card wants the room, so it spans the grid */
+.cards > .card:has(.detail) {
+  grid-column: 1 / -1;
+}
+

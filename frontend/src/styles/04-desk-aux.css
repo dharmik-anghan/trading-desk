@@ -1,0 +1,134 @@
+/* ---------- payoff zoom ---------- */
+.payoffwrap {
+  position: relative;
+}
+.zoom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 0;
+  font-size: 11px;
+}
+.zoom .xbtn {
+  min-width: 24px;
+  text-align: center;
+  font-family: var(--n);
+  line-height: 1.5;
+}
+.zoom .dim {
+  margin-left: auto;
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- news and calendar ---------- */
+.fbar {
+  display: flex;
+  gap: 5px;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.fbar button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: var(--r);
+  padding: 1px 8px;
+  cursor: pointer;
+  color: var(--dim);
+  font-size: 11.5px;
+  font-family: var(--u);
+}
+.fbar button:hover {
+  color: var(--fg);
+}
+.fbar button[aria-pressed="true"] {
+  color: var(--you);
+  border-color: var(--you);
+  font-weight: 600;
+}
+.nitem {
+  display: block;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--grid);
+  color: inherit;
+  text-decoration: none;
+}
+a.nitem:hover {
+  background: var(--selbg);
+}
+a.nitem:hover .nhead {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.nmeta {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  color: var(--dim);
+  font-size: 10.5px;
+  min-width: 0;
+}
+.nmeta > span:first-child {
+  font-family: var(--n);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.nhead {
+  margin: 3px 0 0;
+  line-height: 1.38;
+  max-width: 58ch;
+}
+.imp {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: var(--r);
+  letter-spacing: 0.04em;
+  flex: none;
+}
+.imp.H {
+  background: color-mix(in srgb, var(--dn) 20%, transparent);
+  color: var(--dn);
+}
+.imp.M {
+  background: color-mix(in srgb, var(--mkt) 20%, transparent);
+  color: var(--mkt);
+}
+.imp.L {
+  background: var(--grid);
+  color: var(--dim);
+}
+/* an event landing before an expiry you hold */
+.nitem.evh {
+  background: var(--band);
+  box-shadow: inset 2px 0 0 var(--mkt);
+}
+
+/* the next scheduled release, filling what was dead space mid-toolbar */
+.tbevent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.15;
+  padding: 7px 16px;
+  border-left: 1px solid var(--grid);
+  min-width: 0;
+  max-width: 340px;
+}
+.tbevent small {
+  color: var(--dim);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+.tbevent b {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--mkt);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

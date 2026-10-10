@@ -1,0 +1,322 @@
+/* ── Relative rotation ─────────────────────────────────────────────────────
+   The graph is square and fixed about its centre: the quadrant lines are the
+   only thing on it that does not move, so the axes must not either. */
+.rrgpage {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 48px;
+}
+.rrgpage > header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+.rrgpage > header h1 {
+  margin: 0;
+  font-family: var(--u);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rrgpage > header p {
+  grid-column: 2;
+  margin: 8px 0 0;
+  max-width: 76ch;
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rrgpage .bad {
+  margin-top: 16px;
+  color: var(--dn);
+  font-size: 12px;
+}
+.rrgpage .controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 22px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.rrgpage .controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.rrgpage select,
+.rrgpage input[type="range"] {
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 3px 5px;
+}
+.rrgpage input.win {
+  width: 52px;
+  font-variant-numeric: tabular-nums;
+}
+.rrgpage input[type="range"] {
+  width: 180px;
+  padding: 0;
+  accent-color: var(--you);
+}
+.rrgpage .replay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.rrgpage .replay button {
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 12px;
+  color: var(--you);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.rrgpage .replay button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.rrgpage .barsto {
+  font-size: 11px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.rrgpage .replay small {
+  min-width: 78px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.rrgbody {
+  display: grid;
+  /* The graph is square and sized to the screen's height, so the standings
+     take whatever width is left rather than a gap opening between them. */
+  grid-template-columns: minmax(0, min(100%, calc(100vh - 200px), 760px)) minmax(280px, 1fr);
+  gap: 16px;
+  margin-top: 14px;
+  align-items: start;
+}
+.rotation.rrgpage {
+  max-width: 1320px;
+}
+.rrg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.rrg .quad rect { opacity: 1; }
+.rrg .quad.leading rect { fill: var(--up); fill-opacity: 0.045; }
+.rrg .quad.weakening rect { fill: var(--mkt); fill-opacity: 0.045; }
+.rrg .quad.lagging rect { fill: var(--dn); fill-opacity: 0.04; }
+.rrg .quad.improving rect { fill: var(--you); fill-opacity: 0.045; }
+.rrg .quadname {
+  font-family: var(--u);
+  font-size: 13px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.rrg .quadname.leading { fill: var(--up); }
+.rrg .quadname.weakening { fill: var(--mkt); }
+.rrg .quadname.lagging { fill: var(--dn); }
+.rrg .quadname.improving { fill: var(--you); }
+.rrg .tick line {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+.rrg .tick text,
+.rrg .axisname {
+  font-size: 9px;
+  fill: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.rrg .axisname {
+  font-family: var(--u);
+  font-size: 10px;
+}
+.rrg .rrgaxis {
+  stroke: var(--line);
+  stroke-width: 1.2;
+}
+.rrg .dot {
+  cursor: default;
+}
+/* The head slides between periods rather than jumping, which is what makes a
+   replay read as rotation rather than as a slideshow. */
+.rrg .dot .head,
+.rrg .dot .tag {
+  transition: cx 110ms linear, cy 110ms linear, x 110ms linear, y 110ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rrg .dot .head,
+  .rrg .dot .tag {
+    transition: none;
+  }
+}
+.rrg .dot .tail {
+  stroke: var(--fg);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+.rrg .dot.on .tail {
+  stroke-width: 2;
+}
+.rrg .dot .step {
+  stroke: none;
+}
+.rrg .dot .head {
+  stroke: var(--panel);
+  stroke-width: 1.5;
+}
+.rrg .dot .tag {
+  font-size: 10px;
+  fill: var(--fg);
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.rrg .dot.leading .head, .rrg .dot.leading .step { fill: var(--up); }
+.rrg .dot.weakening .head, .rrg .dot.weakening .step { fill: var(--mkt); }
+.rrg .dot.lagging .head, .rrg .dot.lagging .step { fill: var(--dn); }
+.rrg .dot.improving .head, .rrg .dot.improving .step { fill: var(--you); }
+.rrg .dot.on.leading .tail { stroke: var(--up); }
+.rrg .dot.on.weakening .tail { stroke: var(--mkt); }
+.rrg .dot.on.lagging .tail { stroke: var(--dn); }
+.rrg .dot.on.improving .tail { stroke: var(--you); }
+.rrg .dot.dim {
+  opacity: 0.22;
+}
+.rrg .dot.on .tag {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.standings {
+  display: grid;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.stand {
+  padding: 10px 12px 8px;
+  border-top: 1px solid var(--grid);
+  border-left: 3px solid transparent;
+}
+.stand:first-child {
+  border-top: 0;
+}
+.stand.leading { border-left-color: var(--up); }
+.stand.weakening { border-left-color: var(--mkt); }
+.stand.lagging { border-left-color: var(--dn); }
+.stand.improving { border-left-color: var(--you); }
+.stand h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-family: var(--u);
+  font-size: 14px;
+  font-weight: 600;
+}
+.stand.leading h3 { color: var(--up); }
+.stand.weakening h3 { color: var(--mkt); }
+.stand.lagging h3 { color: var(--dn); }
+.stand.improving h3 { color: var(--you); }
+.stand h3 > span {
+  font-family: var(--n);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--dim);
+}
+.stand h3 .cols {
+  display: flex;
+  margin-left: auto;
+}
+.stand h3 .cols abbr {
+  width: 52px;
+  text-align: right;
+  text-decoration: none;
+}
+.stand ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.stand li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px 52px 52px;
+  align-items: baseline;
+  padding: 3px 4px;
+  margin: 0 -4px;
+  border-radius: var(--r);
+  cursor: default;
+  font-variant-numeric: tabular-nums;
+}
+.stand li:hover,
+.stand li.on {
+  background: var(--selbg);
+}
+.stand li .nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stand li.on .nm {
+  font-weight: 600;
+}
+.stand li .arr {
+  text-align: center;
+  color: var(--dim);
+}
+.stand li .v {
+  text-align: right;
+}
+.stand li.none {
+  display: block;
+  color: var(--dim);
+}
+@media (max-width: 860px) {
+  .rrgbody {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.rrgpage .caveat {
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--mkt);
+  max-width: 90ch;
+  font-size: 12px;
+  color: var(--dim);
+}
+.rrgpage .note {
+  margin-top: 24px;
+  max-width: 82ch;
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.rrgpage .empty {
+  margin-top: 20px;
+  color: var(--dim);
+  font-size: 12px;
+}
+

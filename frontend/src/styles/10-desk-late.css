@@ -1,0 +1,304 @@
+/* ── Alerts, as a count in the header ──────────────────────────────────────
+   They reach Telegram the moment they fire, so the log here is a second copy
+   of something already read on a phone. A count says that in the space it
+   deserves, and opens the log when it matters. */
+.bellwrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.bell {
+  position: relative;
+  width: 28px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.bell svg {
+  width: 15px;
+  height: 15px;
+}
+.bell .body {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.bell .clapper {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+.bell:hover,
+.bell.on {
+  color: var(--fg);
+  border-color: var(--line);
+}
+.bell.new {
+  color: var(--you);
+}
+.bell.off {
+  color: var(--dn);
+}
+.bell .count {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-family: var(--u);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+  color: var(--you-fg);
+  background: var(--you);
+  border-radius: var(--r);
+}
+.bell .live {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mkt);
+}
+/* Covers the desk so a click anywhere shuts the panel. Under the panel and
+   over everything else. */
+.bellaway {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+/* Fixed to the viewport rather than to the bell, because the toolbar is a
+   `.panel` and every panel on this desk hides its overflow - an absolutely
+   positioned popover inside one is clipped to a sliver, which is what the
+   first attempt drew. */
+.bellwrap .a-alerts {
+  position: fixed;
+  top: 64px;
+  right: 8px;
+  z-index: 41;
+  width: 380px;
+  max-height: min(660px, calc(100vh - 78px));
+  box-shadow: var(--shadow);
+}
+
+/* ── What is open on the perpetuals desk ───────────────────────────────────
+   The equivalent of the options desk's booked/MTM cluster. Absent entirely
+   when nothing is open: a strip of zeros is furniture. */
+.funds {
+  display: flex;
+  align-items: stretch;
+  border-left: 1px solid var(--grid);
+}
+.fund {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.1;
+  padding: 7px 14px;
+  min-width: 0;
+}
+.fund + .fund {
+  border-left: 1px solid var(--grid);
+}
+.fund small {
+  font-family: var(--u);
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  margin-bottom: 3px;
+  white-space: nowrap;
+}
+.fund b {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fund b.up {
+  color: var(--up);
+}
+.fund b.dn {
+  color: var(--dn);
+}
+.fund .unit {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--dim);
+}
+.fund em {
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.fund em.up {
+  color: var(--up);
+}
+.fund em.dn {
+  color: var(--dn);
+}
+
+/* ── Is premium rich or cheap ──────────────────────────────────────────────
+   The question the desk could not answer: it showed what a position is, and
+   nothing about whether the options in it were expensive. */
+.a-vol .pb {
+  padding: 8px 9px 10px;
+}
+.volhead {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.volfig {
+  background: var(--panel);
+  padding: 7px 9px;
+}
+.volfig small {
+  display: block;
+  font-family: var(--u);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.volfig b {
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.volfig b.up { color: var(--up); }
+.volfig b.dn { color: var(--dn); }
+.volfig em {
+  display: block;
+  margin-top: 1px;
+  font-style: normal;
+  font-size: 9px;
+  color: var(--dim);
+}
+.a-vol .move {
+  margin: 9px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.a-vol .move b {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Where a reading sits in its own past. The bar is the point: a level means
+   nothing without the range it sits in. */
+.rankbar {
+  margin-top: 12px;
+}
+.rankhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--dim);
+}
+.rankhead b {
+  font-weight: 600;
+}
+.rankbar.rich .rankhead b { color: var(--dn); }
+.rankbar.cheap .rankhead b { color: var(--up); }
+.rankbar.mid .rankhead b { color: var(--mkt); }
+.rankbar .track {
+  position: relative;
+  height: 6px;
+  margin: 5px 0 3px;
+  background: var(--grid);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.rankbar .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--r);
+}
+.rankbar.rich .fill { background: rgba(174, 40, 53, 0.35); }
+.rankbar.cheap .fill { background: rgba(10, 107, 69, 0.3); }
+.rankbar.mid .fill { background: rgba(128, 87, 6, 0.3); }
+.rankbar .here {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 10px;
+  margin-left: -1px;
+  background: var(--fg);
+}
+.rankfoot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.volrealised {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.volrealised th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--dim);
+  padding: 3px 8px 3px 0;
+  white-space: nowrap;
+}
+.volrealised td {
+  text-align: left;
+  padding: 3px 8px 3px 0;
+}
+.volrealised td.n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.volrealised tr.aside th,
+.volrealised tr.aside td {
+  color: var(--dim);
+}
+.volrealised tr.aside:first-of-type th {
+  border-top: 1px solid var(--grid);
+  padding-top: 5px;
+}
+.volrealised tr.aside:first-of-type td {
+  border-top: 1px solid var(--grid);
+  padding-top: 5px;
+}
+.volnote {
+  margin: 7px 0 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+.volcaveat {
+  margin: 10px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--mkt);
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+

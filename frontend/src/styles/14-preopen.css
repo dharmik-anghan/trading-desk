@@ -1,0 +1,467 @@
+/* ── Pre-open ──────────────────────────────────────────────────────────────
+   Sessions down the left, the chosen morning on the right. The one loud thing
+   is the gap column: a bar either side of zero on every row, so the list reads
+   as the shape of the morning before any number is. */
+.preopen.rrgpage {
+  max-width: 1320px;
+}
+.preopen code {
+  font-size: 11px;
+}
+.pobody {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+  align-items: start;
+}
+
+.podays {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.podays button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "date gap"
+    "wd gap"
+    "bar bar";
+  row-gap: 1px;
+  padding: 8px 10px 9px 12px;
+  font: inherit;
+  text-align: left;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--grid);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+.podays button:last-child {
+  border-bottom: 0;
+}
+.podays button:hover {
+  background: var(--itm);
+}
+.podays button.on {
+  background: var(--selbg);
+  border-left-color: var(--you);
+}
+.podays button:focus-visible {
+  outline: 2px solid var(--you);
+  outline-offset: -2px;
+}
+.podays b {
+  grid-area: date;
+  font-family: var(--u);
+  font-size: 14px;
+  font-weight: 600;
+}
+.podays small {
+  grid-area: wd;
+  font-size: 10px;
+  color: var(--dim);
+}
+.podays .gap {
+  grid-area: gap;
+  align-self: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+.podays .pobreadth {
+  grid-area: bar;
+  margin-top: 6px;
+  height: 3px;
+}
+
+.pobreadth {
+  display: flex;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--grid);
+}
+.pobreadth i {
+  display: block;
+  height: 100%;
+}
+.pobreadth .up { background: var(--up); }
+.pobreadth .dn { background: var(--dn); }
+.pobreadth .flat { background: var(--line); }
+
+.preopen .up { color: var(--up); }
+.preopen .dn { color: var(--dn); }
+
+.poday {
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.posum {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  border-bottom: 1px solid var(--line);
+}
+.posum > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px 13px;
+  border-left: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums;
+}
+.posum > div:first-child {
+  border-left: 0;
+}
+.posum small {
+  font-size: 11px;
+  color: var(--dim);
+}
+.posum b {
+  font-family: var(--u);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.posum .idx b {
+  font-size: 30px;
+  letter-spacing: -0.01em;
+}
+.posum .idx span {
+  font-size: 13px;
+}
+.posum .dim {
+  font-size: 11px;
+  color: var(--dim);
+}
+.posum .adv .counts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.posum .adv .pobreadth {
+  flex: 1;
+  height: 6px;
+}
+
+.poday .controls {
+  margin: 0;
+  gap: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.poday .controls input[type="search"] {
+  width: 200px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 3px 7px;
+}
+.poday .controls .hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* Only scrolls sideways where the table cannot fit: a scroll box on a wide
+   screen would also trap the sticky header, which then never sticks. */
+.poscroll {
+  overflow: visible;
+}
+.potable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.potable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--dim);
+  background: var(--head);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  user-select: none;
+}
+.potable th:hover {
+  color: var(--fg);
+}
+.potable td {
+  padding: 5px 10px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--grid);
+}
+.potable .n {
+  text-align: right;
+  white-space: nowrap;
+}
+.potable td:first-child {
+  max-width: 240px;
+  height: 40px;
+}
+.potable td:first-child b {
+  display: block;
+  font-weight: 600;
+}
+.potable td:first-child small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--dim);
+}
+.potable td.n small {
+  display: inline-block;
+  min-width: 52px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.potable tbody tr.click {
+  cursor: pointer;
+}
+.potable tbody tr:hover > td {
+  background: var(--itm);
+}
+.potable tbody tr.on > td {
+  background: var(--selbg);
+}
+.potable td.none {
+  padding: 20px;
+  text-align: center;
+  color: var(--dim);
+}
+
+.potable .gapcol {
+  width: 22%;
+  min-width: 120px;
+  padding-left: 4px;
+  padding-right: 14px;
+  cursor: default;
+}
+.pogap {
+  position: relative;
+  display: block;
+  height: 12px;
+}
+.pogap::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  border-left: 1px solid var(--line);
+}
+.pogap i {
+  position: absolute;
+  top: 2px;
+  height: 8px;
+  background: var(--dim);
+}
+.pogap i.up { background: var(--fu); border-right: 2px solid var(--up); }
+.pogap i.dn { background: var(--fd); border-left: 2px solid var(--dn); }
+
+.potable tr.bookrow > td {
+  padding: 0;
+  background: var(--bg);
+}
+.pobook {
+  display: grid;
+  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  gap: 28px;
+  padding: 14px 18px 16px;
+}
+.pobook table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.pobook th {
+  padding: 3px 8px;
+  font-weight: 500;
+  color: var(--dim);
+  text-align: left;
+}
+.pobook td {
+  position: relative;
+  padding: 3px 8px;
+  width: 40%;
+}
+.pobook td.px {
+  width: 20%;
+  text-align: center;
+  font-weight: 500;
+}
+.pobook .n {
+  text-align: right;
+}
+.pobook th.n:nth-child(2) {
+  text-align: center;
+}
+.pobook td i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+}
+.pobook td.buy i {
+  right: 0;
+  background: var(--fu);
+}
+.pobook td.sell i {
+  left: 0;
+  background: var(--fd);
+}
+.pobook td span {
+  position: relative;
+}
+.pobook tr.iep td {
+  border-top: 1px solid var(--mkt);
+  border-bottom: 1px solid var(--mkt);
+}
+.pobook tr.iep td.px {
+  color: var(--mkt);
+}
+.pobook tr.iep small {
+  font-size: 10px;
+}
+.pobook dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 16px;
+  margin: 22px 0 0;
+  align-content: start;
+  font-size: 12px;
+}
+.pobook dt {
+  color: var(--dim);
+}
+.pobook dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 860px) {
+  .pobody {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .podays {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    max-height: none;
+  }
+  .podays button {
+    min-width: 116px;
+    border-bottom: 0;
+    border-left: 0;
+    border-right: 1px solid var(--grid);
+    border-top: 2px solid transparent;
+  }
+  .podays button.on {
+    border-top-color: var(--you);
+  }
+  .posum {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .posum > div:nth-child(3) {
+    border-left: 0;
+  }
+  .posum > div:nth-child(n + 3) {
+    border-top: 1px solid var(--grid);
+  }
+  .poday .controls input[type="search"] {
+    width: 150px;
+  }
+  .pobook {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .potable .gapcol {
+    display: none;
+  }
+  .poscroll {
+    overflow-x: auto;
+  }
+}
+
+/* Indicator conditions: one row each, read left to right. */
+.ob-sig {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 4px 17px;
+}
+.ob-sighead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.ob-sighead span {
+  min-width: 62px;
+}
+.ob-sighead:not(:first-child) {
+  margin-top: 8px;
+}
+.ob-conds {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ob-cond {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+.ob-operand {
+  display: inline-flex;
+  gap: 4px;
+}
+.ob-operand input {
+  width: 52px;
+}
+.ob-operand input.wide {
+  width: 80px;
+}
+.ob-x {
+  height: 24px;
+  padding: 0 8px;
+  font: 12px var(--n);
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.ob-x:hover {
+  color: var(--fg);
+  border-color: var(--you);
+}
+
