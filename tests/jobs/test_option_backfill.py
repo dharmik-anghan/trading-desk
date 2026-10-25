@@ -62,7 +62,17 @@ class _Calls:
 def calls(monkeypatch: pytest.MonkeyPatch) -> _Calls:
     fake = _Calls()
     monkeypatch.setattr(job, "backfill", fake)
+    monkeypatch.setattr(job, "fetch_for", _fetch_for)
     return fake
+
+
+def _fetch_for(store: Any, source: Any, progress: Any, *, today: date, wait: bool) -> Any:
+    _LIVE.append((progress.underlying, progress.day, today))
+    progress.state = "done"
+    return progress
+
+
+_LIVE: list[tuple[str, date, date]] = []
 
 
 def _job(store: OptionStore, now: datetime) -> OptionBackfiller:
@@ -114,3 +124,10 @@ def test_quiet_hours_are_weekday_market_hours_in_ist() -> None:
     assert not in_quiet_hours(_at(MONDAY, 15, 45))
     assert not in_quiet_hours(_at(MONDAY, 8, 59))
     assert not in_quiet_hours(_at(SATURDAY, 11))
+
+
+def test_refreshes_the_live_expiry_up_to_yesterday(calls: _Calls) -> None:
+    _LIVE.clear()
+    store = _store({"NIFTY": SATURDAY})
+    asyncio.run(_job(store, _at(SATURDAY, 20)).tick())
+    assert _LIVE == [("NIFTY", date(2026, 10, 2), SATURDAY)]

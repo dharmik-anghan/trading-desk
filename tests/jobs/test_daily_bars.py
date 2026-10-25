@@ -208,8 +208,11 @@ def test_a_rate_limit_is_waited_out_once() -> None:
 
     store = BarStore()
     up = DailyBarUpdater(
-        symbols=lambda: (NIFTY,), fetch=fetch, store=lambda: store,
-        now=lambda: _at(date(2026, 9, 30), 16), sleep=lambda _: None,
+        symbols=lambda: (NIFTY,),
+        fetch=fetch,
+        store=lambda: store,
+        now=lambda: _at(date(2026, 9, 30), 16),
+        sleep=lambda _: None,
     )
     asyncio.run(up.tick())
     assert calls == [NIFTY, NIFTY]

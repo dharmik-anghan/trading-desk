@@ -159,7 +159,9 @@ class DailyBarUpdater:
 
         if failed:
             # Asked again next pass; the reason is the last one seen.
-            self.last_error = f"{len(failed)} symbols failed, last: {self.last_error}"
+            self.last_error = (
+                f"{len(failed)} symbols failed ({', '.join(failed[:5])}), last: {self.last_error}"
+            )
             log.warning("daily bars: %s", self.last_error)
         else:
             self.last_error = None

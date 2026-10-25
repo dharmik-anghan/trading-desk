@@ -14,6 +14,9 @@ Only out of hours. A weekly expiry is a few hundred contracts, a request each,
 and the desk beside this spends the same Fyers budget on prices while the market
 is open.
 
+It also refreshes the expiry still trading up to yesterday, so opening the
+simulator after a few days away finds those days held rather than fetching them.
+
 The first load of years stays the script's job: an underlying with nothing held
 is left alone rather than started on a six-hour fetch at app start.
 """
@@ -24,9 +27,11 @@ import asyncio
 import logging
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, time, timedelta
+from typing import cast
 
 from optbt.data.backfill import backfill
-from optbt.data.source import ExpiredSource
+from optbt.data.live import Progress, fetch_for
+from optbt.data.source import ExpiredSource, LiveSource
 from optbt.data.store import OptionStore
 from venues.calendar import IST
 
@@ -114,6 +119,20 @@ class OptionBackfiller:
                         report.fetched,
                         report.bars,
                     )
+
+            # The expiry still trading: its days up to yesterday, which the
+            # settled-only pass above cannot reach until it settles.
+            progress = fetch_for(
+                store,
+                cast(LiveSource, source),
+                Progress(underlying=underlying, day=today - timedelta(days=1), expiry=None),
+                today=today,
+                wait=False,
+            )
+            fetched += progress.done - len(progress.failed)
+            if progress.state == "failed":
+                failed.append(f"{underlying} live expiry: {progress.error}")
+            failed.extend(progress.failed)
 
         if failed:
             # Not ledgered, so the next pass asks for them again.

@@ -28,6 +28,7 @@ from typing import Literal
 from optbt.data.backfill import (
     BAND_LOOKBACK,
     EARLIEST,
+    cut_short,
     fetch_contract,
     in_band,
     refresh_calendar,
@@ -52,6 +53,11 @@ AHEAD = timedelta(days=45)
 
 #: Expiries listed this far past the day: the nearest weeklies and the monthly.
 CALENDAR_AHEAD = timedelta(days=120)
+
+
+#: One fetch at a time across the process: the simulator's and the daily
+#: backfill's both rewrite the trading expiry's rows, and two writers conflict.
+FETCH_LOCK = threading.Lock()
 
 
 @dataclass
@@ -94,9 +100,32 @@ def fetch_for(
     today: date,
     band: float = BAND,
     now: Callable[[], datetime] = datetime.now,
+    wait: bool = True,
 ) -> Progress:
     """What the simulator needs for `progress.day`: the session, the calendar,
-    and one expiry's contracts - `progress.expiry`, or the nearest on or after it."""
+    and one expiry's contracts - `progress.expiry`, or the nearest on or after it.
+
+    Only one runs at a time. With `wait` False, one already running means this
+    returns at once, untouched, with `progress.state` "done" and nothing fetched."""
+    if not FETCH_LOCK.acquire(blocking=wait):
+        progress.state = "done"
+        progress.finished_at = now()
+        return progress
+    try:
+        return _fetch_for(store, source, progress, today=today, band=band, now=now)
+    finally:
+        FETCH_LOCK.release()
+
+
+def _fetch_for(
+    store: OptionStore,
+    source: LiveSource,
+    progress: Progress,
+    *,
+    today: date,
+    band: float,
+    now: Callable[[], datetime],
+) -> Progress:
     underlying, day = progress.underlying, progress.day
     yesterday = today - timedelta(days=1)
     index = OPTION_SERIES[underlying]
@@ -138,6 +167,9 @@ def fetch_for(
             try:
                 trading = contract.expiry >= today
                 candles = fetch_contract(source, contract, yesterday if trading else None)
+                # Settled but not published to its end: kept apart like a trading
+                # one, so the next day's refresh asks for it again.
+                trading = trading or cut_short(contract, candles, today)
             except SourceError as exc:
                 log.warning("%s: %s", contract.symbol, exc)
                 progress.failed.append(contract.symbol)

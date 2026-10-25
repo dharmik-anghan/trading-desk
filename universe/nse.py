@@ -191,9 +191,13 @@ def fetch(spec: IndexSpec, session: requests.Session | None = None) -> Membershi
     return parse_list(response.text, spec.id)
 
 
+#: Tickers Fyers renamed before NSE's index lists did.
+FYERS_RENAMED = {"ICICIPRULI": "ICICILIFE"}
+
+
 def fyers_symbol(member: Member) -> str:
     """What the desk's Indian source calls this stock."""
-    return f"NSE:{member.symbol}-EQ"
+    return f"NSE:{FYERS_RENAMED.get(member.symbol, member.symbol)}-EQ"
 
 
 # ---------------------------------------------------------------------------
