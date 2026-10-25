@@ -981,3 +981,12 @@
   color: var(--dim);
 }
 
+
+/* "Is it real?" — the reality check under a result. */
+.bt .check { margin-top: var(--space-4, 20px); }
+.bt .check .head { display: flex; align-items: center; gap: 12px; }
+.bt .check h3 { margin: 0; }
+.bt .check .verdict { padding: 2px 10px; border-radius: 4px; font-size: 13px; border: 1px solid currentColor; }
+.bt .check .verdict.up { color: var(--up, #3fb97f); }
+.bt .check .verdict.dn { color: var(--dn, #e5645f); }
+.bt .check .verdict.mid { color: var(--warn, #d9a441); }

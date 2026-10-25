@@ -119,7 +119,7 @@ def parse_wanted(raw: str, base: Interval) -> list[Wanted]:
     is worth drawing without an indicator somebody mistyped, and the endpoint
     that must be strict about this - the one that runs a strategy - already is.
     """
-    from backtest.spec import INDICATORS
+    from backtest.spec import DRAWABLE
 
     out: list[Wanted] = []
     for piece in raw.split(","):
@@ -127,7 +127,7 @@ def parse_wanted(raw: str, base: Interval) -> list[Wanted]:
         if not parts or not parts[0]:
             continue
         name = parts[0].lower()
-        if name not in INDICATORS:
+        if name not in DRAWABLE:
             continue
         try:
             length = int(parts[1]) if len(parts) > 1 and parts[1] else 14

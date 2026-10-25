@@ -92,7 +92,7 @@ from streaming import TickHub
 from streaming.account import AccountHub
 from universe.nse import daily_series
 from venues import AssetClass, Capability, listed, listed_on, option_underlyings, serving
-from venues.calendar import in_session
+from venues.calendar import Session, in_session
 
 log = logging.getLogger(__name__)
 
@@ -178,7 +178,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
                 spec.id,
                 # A way to get an adapter rather than an adapter: the options
                 # venue's token expires every morning. See `VenueBars`.
-                VenueBars(partial(broker_for, spec)),
+                VenueBars(
+                    partial(broker_for, spec), weekdays_only=spec.session is Session.NSE_FO
+                ),
                 {symbol: symbol for symbol in symbols},
             )
         log.info("bar sources registered: %s", ", ".join(service.sources()) or "none")

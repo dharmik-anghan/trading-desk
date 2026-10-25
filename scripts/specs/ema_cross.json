@@ -1,0 +1,107 @@
+{
+  "name": "EMA cross, ATR stop",
+  "params": {
+    "fast": {
+      "type": "int",
+      "low": 5,
+      "high": 60,
+      "default": 20
+    },
+    "slow": {
+      "type": "int",
+      "low": 30,
+      "high": 240,
+      "default": 50
+    },
+    "stop_atr": {
+      "type": "float",
+      "low": 1.0,
+      "high": 6.0,
+      "step": 0.25,
+      "default": 3.0
+    }
+  },
+  "constraints": [
+    {
+      "lt": [
+        "fast",
+        "slow"
+      ]
+    }
+  ],
+  "long_entry": {
+    "op": "crosses_above",
+    "left": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "fast"
+      }
+    },
+    "right": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "slow"
+      }
+    }
+  },
+  "short_entry": {
+    "op": "crosses_below",
+    "left": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "fast"
+      }
+    },
+    "right": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "slow"
+      }
+    }
+  },
+  "long_exit": {
+    "op": "crosses_below",
+    "left": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "fast"
+      }
+    },
+    "right": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "slow"
+      }
+    }
+  },
+  "short_exit": {
+    "op": "crosses_above",
+    "left": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "fast"
+      }
+    },
+    "right": {
+      "kind": "indicator",
+      "name": "ema",
+      "length": {
+        "param": "slow"
+      }
+    }
+  },
+  "stop": {
+    "kind": "atr",
+    "value": {
+      "param": "stop_atr"
+    },
+    "length": 14
+  }
+}

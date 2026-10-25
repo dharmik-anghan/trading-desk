@@ -120,7 +120,7 @@ def test_a_broken_strategy_says_what_to_change(stocked: TestClient) -> None:
         "long_entry": {
             "all": [
                 {
-                    "left": {"kind": "indicator", "name": "macd", "length": 9},
+                    "left": {"kind": "indicator", "name": "stochastic", "length": 9},
                     "op": "above",
                     "right": 0,
                 }
@@ -524,3 +524,19 @@ def test_pivot_gap_takes_no_period(stocked: TestClient) -> None:
 
     assert response.status_code == 200
     assert "pivot gap % above 5" in response.json()["reads"]
+
+
+def test_a_strategy_can_be_checked_against_random_entries(
+    stocked: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The check answers with a verdict and the numbers it was reached from."""
+    monkeypatch.setattr("os.cpu_count", lambda: 1)
+
+    response = stocked.post("/api/backtest/check", json={**_crossover(), "random_runs": 20})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["verdict"] in ("pass", "weak", "fail")
+    assert len(body["checks"]) == 4
+    assert body["random_runs"] == 20
+    assert 0 < body["p_value"] <= 1

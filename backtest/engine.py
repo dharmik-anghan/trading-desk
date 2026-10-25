@@ -41,7 +41,7 @@ from typing import Protocol
 from backtest.market import Costs, Market, Side
 from backtest.models import Action, Exit, Intent, Position, Trade
 from backtest.resample import closes_at
-from backtest.view import View, build, wind
+from backtest.view import Shared, View, build, wind
 from marketdata.models import Bar, Interval
 
 log = logging.getLogger(__name__)
@@ -177,8 +177,16 @@ def run(
     *,
     interval: Interval,
     execution: Execution | None = None,
+    shared: Shared | None = None,
 ) -> Result:
-    """Walk the bars once, giving the rule only what had happened."""
+    """Walk the bars once, giving the rule only what had happened.
+
+    `shared` lets a study that runs many rules over the same bars keep the
+    resampled frames and indicator arrays between runs. It changes how long a run
+    takes and nothing about what it decides: the view is built from the same bars
+    either way, and `tests/backtest/test_study.py` holds the two to identical
+    trades.
+    """
     settings = execution or Execution()
     result = Result(
         rule=rule.name,
@@ -194,7 +202,7 @@ def run(
     result.started = bars[0].ts
     result.ended = closes_at(bars[-1].ts, interval)
 
-    view, cursors = build(bars, interval, rule.context)
+    view, cursors = build(bars, interval, rule.context, shared)
     equity = settings.capital
     position: Position | None = None
     #: What was decided at the previous bar's close, waiting to be filled at this

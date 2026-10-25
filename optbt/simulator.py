@@ -36,8 +36,10 @@ from venues.instruments import INDIA_VIX
 #: Where a fresh simulation opens: five minutes into the session.
 DEFAULT_CLOCK = (9, 20)
 
-#: Expiries offered at a moment, nearest first.
-EXPIRIES_SHOWN = 8
+#: Expiries offered at a moment, nearest first: every one inside this window -
+#: each weekly of the next three months - and the next few after it.
+EXPIRY_WINDOW = timedelta(days=92)
+EXPIRIES_AFTER_WINDOW = 2
 
 _MOVE = re.compile(r"^([+-])(\d+)([mhd])$")
 
@@ -546,8 +548,11 @@ def payoff(
         else:
             open_.append(s)
     pnl = realised + sum(
-        s.leg.sign * ((s.ltp or s.leg.entry_price or 0) - (s.leg.entry_price or 0))
-        * s.leg.lots * (s.lot_size or 0) * multiplier
+        s.leg.sign
+        * ((s.ltp or s.leg.entry_price or 0) - (s.leg.entry_price or 0))
+        * s.leg.lots
+        * (s.lot_size or 0)
+        * multiplier
         for s in open_
     )
     charges = sum(s.charges for s in live)
@@ -659,6 +664,7 @@ def payoff(
     pop = None
     sd: list[float] = []
     if sd_move > 0:
+
         def cdf(x: float) -> float:
             return _norm_cdf((math.log(x / spot) + 0.5 * sd_move**2) / sd_move) if x > 0 else 0.0
 
@@ -673,8 +679,20 @@ def payoff(
         sd = [spot * math.exp(k * sd_move) for k in (-2, -1, 1, 2)]
 
     return Payoff(
-        pnl, realised, expiry_curve, today_curve, max_profit, max_loss, p_unl, l_unl,
-        breakevens, pop, sd, margin.span, margin.exposure, charges,
+        pnl,
+        realised,
+        expiry_curve,
+        today_curve,
+        max_profit,
+        max_loss,
+        p_unl,
+        l_unl,
+        breakevens,
+        pop,
+        sd,
+        margin.span,
+        margin.exposure,
+        charges,
     )
 
 
@@ -739,7 +757,9 @@ def moment(
     spot = h.close_at(h.index_symbol, at)
     assert spot is not None
     monthlies = set(h.monthly_expiries())
-    listed = [e for e in h.expiries() if e >= at.date()][:EXPIRIES_SHOWN]
+    ahead = [e for e in h.expiries() if e >= at.date()]
+    inside = sum(1 for e in ahead if e <= at.date() + EXPIRY_WINDOW)
+    listed = ahead[: inside + EXPIRIES_AFTER_WINDOW]
     status = h.expiry_status(listed)
     expiries = [
         Expiry(e, (e - at.date()).days, e in monthlies, *status.get(e, ("missing", None)))

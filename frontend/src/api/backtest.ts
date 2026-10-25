@@ -31,7 +31,14 @@ export interface Group {
   any?: Compare[];
 }
 
-export type LevelKind = "percent" | "candle" | "atr" | "pivot" | "swing" | "reward";
+export type LevelKind =
+  | "percent"
+  | "candle"
+  | "candle_mid"
+  | "atr"
+  | "pivot"
+  | "swing"
+  | "reward";
 
 export interface Level {
   kind: LevelKind;
@@ -210,6 +217,27 @@ export function getBacktestCandles(request: {
   spec?: StrategySpec;
 }): Promise<WindowResponse> {
   return postJson<typeof request, WindowResponse>("/api/backtest/candles", request);
+}
+
+export interface RealityCheck {
+  /** "pass": every check held. "weak": beat random but failed another. "fail": did not beat random. */
+  verdict: "pass" | "weak" | "fail";
+  checks: { name: string; passed: boolean; detail: string }[];
+  trades: number;
+  total_return: number;
+  /** Share of random-entry runs that did at least as well. */
+  p_value: number;
+  random_runs: number;
+  random_median: number;
+  random_best: number;
+  random_trades: number;
+  periods: { label: string; trades: number; total_return: number; win_rate: number }[];
+  stressed_return: number;
+}
+
+/** The strategy against random entries, two periods and doubled costs. */
+export function checkBacktest(request: BacktestRequest): Promise<RealityCheck> {
+  return postJson<BacktestRequest, RealityCheck>("/api/backtest/check", request);
 }
 
 export function runBacktest(request: BacktestRequest): Promise<BacktestResult> {

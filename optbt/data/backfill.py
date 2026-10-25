@@ -48,6 +48,10 @@ LISTING_SLACK = timedelta(days=5)
 #: a floor keeps a walk-back finite if a contract ever answers every window.
 EARLIEST = date(2019, 1, 1)
 
+#: How long after its expiry a contract whose bars stop short of the expiry day is
+#: taken as not published yet, rather than as one that stopped trading early.
+PUBLISH_GRACE = timedelta(days=7)
+
 
 @dataclass(frozen=True)
 class ExpiryReport:
@@ -152,6 +156,18 @@ def fetch_contract(
     return candles
 
 
+def cut_short(contract: Contract, candles: list[Candle], today: date) -> bool:
+    """A just-settled contract whose bars stop before its expiry day: the source
+    has not published its last sessions yet. Fetched at 00:56 the night after the
+    19 Oct 2026 weekly, every one of its contracts ended on the 16th - and ledgered
+    as held, they would have stayed that way."""
+    return (
+        bool(candles)
+        and contract.expiry >= today - PUBLISH_GRACE
+        and max(c.ts for c in candles).date() < contract.expiry
+    )
+
+
 def backfill(
     store: OptionStore,
     source: ExpiredSource,
@@ -191,6 +207,10 @@ def backfill(
                 except SourceError as exc:
                     # Not ledgered, so the next run asks again.
                     log.warning("%s: %s", contract.symbol, exc)
+                    failed.append(contract.symbol)
+                    continue
+                if cut_short(contract, candles, now().date()):
+                    log.warning("%s: no bars on its expiry day yet", contract.symbol)
                     failed.append(contract.symbol)
                     continue
                 bars += store.write_contract(contract, candles, fetched_at=now())

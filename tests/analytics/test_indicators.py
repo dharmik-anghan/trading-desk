@@ -14,17 +14,25 @@ import pytest
 
 from analytics.indicators import (
     Line,
+    adx,
     atr,
+    bollinger,
     closes,
     ema,
+    highest,
+    lowest,
+    macd,
     percentile_rank,
     pivot_gap,
     pivot_gap_rank,
     pivots,
+    realised_volatility,
     rsi,
     sma,
     supertrend,
     true_range,
+    vwap,
+    zscore,
 )
 from marketdata.models import Bar
 
@@ -387,3 +395,189 @@ def test_supertrend_starts_above_price_and_flips_below_on_a_close_through_it() -
     assert 108.5 - 3 * 6.5 == pytest.approx(89.0)
     assert line[4] == pytest.approx(94.0)
     assert line[4] < rows[4][3]
+
+
+# --------------------------------------------------------------------------
+# MACD, Bollinger bands, ADX, VWAP and channels
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("cut", [40, 77, 150, 199, 260])
+def test_the_newer_indicators_cannot_see_past_their_bar_either(cut: int) -> None:
+    bars = _walk(300)
+    prices = closes(bars)
+
+    def lines(upto: int) -> dict[str, Line]:
+        b, p = bars[:upto], prices[:upto]
+        line, signal, hist = macd(p, 12, 26, 9)
+        mid, upper, lower = bollinger(p, 20, 2.0)
+        trend, plus, minus = adx(b, 14)
+        return {
+            "macd": line,
+            "macd_signal": signal,
+            "macd_hist": hist,
+            "bb_mid": mid,
+            "bb_upper": upper,
+            "bb_lower": lower,
+            "adx": trend,
+            "plus_di": plus,
+            "minus_di": minus,
+            "vwap": vwap(b),
+            "highest": highest([x.high for x in b], 20),
+            "lowest": lowest([x.low for x in b], 20),
+        }
+
+    whole, cutoff = lines(300), lines(cut)
+    for name, line in whole.items():
+        assert line[:cut] == cutoff[name], f"{name} changed when the future was removed"
+        assert len(line) == 300
+
+
+def test_macd_is_fast_ema_minus_slow_ema_and_the_signal_smooths_it() -> None:
+    prices = closes(_walk(120))
+    line, signal, hist = macd(prices, 12, 26, 9)
+    quick, steady = ema(prices, 12), ema(prices, 26)
+
+    assert line[24] is None
+    assert line[25] == pytest.approx((quick[25] or 0) - (steady[25] or 0))
+    # The signal needs nine line values before it exists: 25 + 8.
+    assert signal[32] is None
+    assert signal[33] is not None
+    seed = sum(v for v in line[25:34] if v is not None) / 9
+    assert signal[33] == pytest.approx(seed)
+    assert hist[40] == pytest.approx((line[40] or 0) - (signal[40] or 0))
+
+
+def test_bollinger_bands_by_hand() -> None:
+    mid, upper, lower = bollinger([1.0, 2.0, 3.0, 4.0], 3, 2.0)
+
+    assert mid[:2] == [None, None]
+    assert mid[2] == pytest.approx(2.0)
+    # Population deviation of 1, 2, 3 is sqrt(2/3).
+    assert upper[2] == pytest.approx(2.0 + 2 * (2 / 3) ** 0.5)
+    assert lower[2] == pytest.approx(2.0 - 2 * (2 / 3) ** 0.5)
+    assert mid[3] == pytest.approx(3.0)
+
+
+def test_bollinger_bands_survive_large_prices_and_a_flat_series() -> None:
+    flat = bollinger([100_000.0] * 30, 20, 2.0)
+    assert flat[1][25] == pytest.approx(100_000.0)
+    assert flat[2][25] == pytest.approx(100_000.0)
+
+    big = [100_000.0 + (i % 5) for i in range(60)]
+    _, upper, lower = bollinger(big, 20, 2.0)
+    width = (upper[40] or 0) - (lower[40] or 0)
+    assert 0 < width < 20
+
+
+def test_highest_and_lowest_include_the_current_bar() -> None:
+    values = [1.0, 3.0, 2.0, 5.0, 4.0]
+    assert highest(values, 3) == [None, None, 3.0, 5.0, 5.0]
+    assert lowest(values, 3) == [None, None, 1.0, 2.0, 2.0]
+    assert highest(values, 1) == values
+
+
+def test_highest_matches_a_brute_force_window() -> None:
+    values = [b.high for b in _walk(200)]
+    fast = highest(values, 17)
+    for i in range(16, 200):
+        assert fast[i] == max(values[i - 16 : i + 1])
+
+
+def test_adx_starts_after_two_periods_and_stays_in_range() -> None:
+    trend, plus, minus = adx(_walk(200), 14)
+
+    assert plus[13] is None and plus[14] is not None
+    assert trend[26] is None and trend[27] is not None
+    for line in (trend, plus, minus):
+        assert all(0.0 <= v <= 100.0 for v in line if v is not None)
+
+
+def test_adx_is_high_in_a_steady_trend_and_says_which_way() -> None:
+    rising = _bars([(i, i + 1.0, i - 0.5, i + 0.5) for i in range(1, 80)])
+    trend, plus, minus = adx(rising, 14)
+
+    assert (trend[-1] or 0.0) > 80
+    assert (plus[-1] or 0) > (minus[-1] or 0)
+
+    falling = _bars([(200 - i, 201 - i, 199.5 - i, 200.5 - i - 1) for i in range(80)])
+    _, plus_down, minus_down = adx(falling, 14)
+    assert (minus_down[-1] or 0) > (plus_down[-1] or 0)
+
+
+def test_vwap_weights_by_volume_and_restarts_each_day() -> None:
+    day = datetime(2026, 1, 1, 23, 0, tzinfo=UTC)
+    bars = [
+        Bar(ts=day, open=10, high=10, low=10, close=10, volume=1.0),
+        Bar(ts=day + timedelta(minutes=30), open=20, high=20, low=20, close=20, volume=3.0),
+        # Past midnight UTC: a new day, so the earlier bars no longer count.
+        Bar(ts=day + timedelta(hours=1), open=50, high=50, low=50, close=50, volume=2.0),
+    ]
+
+    line = vwap(bars)
+
+    assert line[0] == pytest.approx(10.0)
+    assert line[1] == pytest.approx((10 * 1 + 20 * 3) / 4)
+    assert line[2] == pytest.approx(50.0)
+
+
+def test_vwap_is_undefined_until_some_volume_has_traded() -> None:
+    bars = [
+        Bar(ts=START, open=1, high=1, low=1, close=1, volume=0.0),
+        Bar(ts=START + timedelta(minutes=1), open=2, high=2, low=2, close=2, volume=4.0),
+    ]
+    assert vwap(bars) == [None, pytest.approx(2.0)]
+
+
+def _brute_rank(values: list[float | None], length: int) -> Line:
+    """The definition, written the slow way: count what was strictly lower."""
+    out: Line = [None] * len(values)
+    for i in range(length, len(values)):
+        current = values[i]
+        window = values[i - length : i]
+        if current is None or any(v is None for v in window):
+            continue
+        out[i] = sum(1 for v in window if v is not None and v < current) / length * 100.0
+    return out
+
+
+@pytest.mark.parametrize("length", [1, 3, 20, 60])
+def test_the_fast_percentile_rank_is_the_definition(length: int) -> None:
+    rng = random.Random(length)
+    values: list[float | None] = [round(rng.gauss(0, 1), 1) for _ in range(300)]  # ties
+    for gap in (0, 1, 2, 77, 150, 151, 152, 299):
+        values[gap] = None
+
+    assert percentile_rank(values, length) == _brute_rank(values, length)
+
+
+def test_realised_volatility_by_hand() -> None:
+    # Returns of +10%, -10%, +10%: mean 0.0333, sample deviation of those three.
+    prices = [100.0, 110.0, 99.0, 108.9]
+    line = realised_volatility(prices, 3)
+    returns = [0.1, -0.1, 0.1]
+    mean = sum(returns) / 3
+    expected = (sum((r - mean) ** 2 for r in returns) / 2) ** 0.5
+
+    assert line[:3] == [None, None, None]
+    assert line[3] == pytest.approx(expected)
+
+
+def test_zscore_by_hand_and_flat_series() -> None:
+    line = zscore([1.0, 2.0, 3.0, 6.0], 3)
+
+    assert line[:2] == [None, None]
+    assert line[2] == pytest.approx(1.0)  # 3 is one deviation (1.0) above the mean 2
+    # Window 2, 3, 6: mean 11/3, sample variance 13/3, and 6 sits 7/3 above the mean.
+    assert line[3] == pytest.approx((7 / 3) / (13 / 3) ** 0.5)
+    assert zscore([5.0] * 10, 4)[-1] == 0.0
+
+
+@pytest.mark.parametrize("cut", [50, 123, 250])
+def test_the_feature_lines_cannot_see_past_their_bar(cut: int) -> None:
+    prices = closes(_walk(300))
+    volumes = [b.volume + i % 7 for i, b in enumerate(_walk(300))]
+    assert realised_volatility(prices, 20)[:cut] == realised_volatility(prices[:cut], 20)
+    assert zscore(volumes, 20)[:cut] == zscore(volumes[:cut], 20)
+    ranked = percentile_rank(realised_volatility(prices, 20), 30)
+    assert ranked[:cut] == percentile_rank(realised_volatility(prices[:cut], 20), 30)

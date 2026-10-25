@@ -33,16 +33,21 @@ class Interval(StrEnum):
 
     @property
     def seconds(self) -> int:
-        return {
-            Interval.M1: 60,
-            Interval.M5: 300,
-            Interval.M15: 900,
-            Interval.M30: 1800,
-            Interval.H1: 3600,
-            Interval.H4: 14400,
-            Interval.D1: 86400,
-            Interval.W1: 604800,
-        }[self]
+        return _SECONDS[self]
+
+
+#: Looked up on every bar of every run - `seconds` is called a few million times
+#: in one backtest - so built once rather than as a dict per call.
+_SECONDS = {
+    Interval.M1: 60,
+    Interval.M5: 300,
+    Interval.M15: 900,
+    Interval.M30: 1800,
+    Interval.H1: 3600,
+    Interval.H4: 14400,
+    Interval.D1: 86400,
+    Interval.W1: 604800,
+}
 
 
 @dataclass(frozen=True)

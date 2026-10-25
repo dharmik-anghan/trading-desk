@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getBarSeries, runBacktest } from "../api";
+import type { BacktestRequest } from "../api";
 import { BackButton } from "./BackButton";
 import type {
   BacktestResult,
@@ -14,6 +15,8 @@ import { LevelPicker } from "./backtest/LevelPicker";
 import { SessionPicker } from "./backtest/SessionPicker";
 import { TriggerPicker } from "./backtest/TriggerPicker";
 import { RunResult } from "./backtest/RunResult";
+import { RealityCheck } from "./backtest/RealityCheck";
+import { PRESETS } from "./backtest/presets";
 
 interface Props {
   onHome: () => void;
@@ -32,90 +35,6 @@ const SIZES = ["5m", "15m", "30m", "1h", "4h", "1d"] as const;
 /** Where a higher-timeframe condition can read from. */
 const HIGHER = ["15m", "30m", "1h", "4h", "1d"] as const;
 
-/** A starting point that is a real strategy rather than an empty form. */
-const OPENING: StrategySpec = {
-  name: "EMA 9/21 crossover",
-  long_entry: {
-    all: [
-      {
-        left: { kind: "indicator", name: "ema", length: 9 },
-        op: "crosses_above",
-        right: { kind: "indicator", name: "ema", length: 21 },
-      },
-    ],
-  },
-  long_exit: {
-    all: [
-      {
-        left: { kind: "indicator", name: "ema", length: 9 },
-        op: "crosses_below",
-        right: { kind: "indicator", name: "ema", length: 21 },
-      },
-    ],
-  },
-  short_entry: null,
-  short_exit: null,
-  stop: null,
-  target: null,
-};
-
-const ema = (length: number, ago = 0, tf?: string) =>
-  ({ kind: "indicator", name: "ema", length, ago, tf }) as const;
-const rsi14 = { kind: "indicator", name: "rsi", length: 14 } as const;
-const px = (field: "open" | "high" | "low" | "close", ago = 0) =>
-  ({ kind: "price", field, ago }) as const;
-const num = (value: number) => ({ kind: "value", value }) as const;
-
-/**
- * Trend pullback: EMA 50 over 200 and rising, price back at the 50, a red candle
- * then a green one, RSI in 45-55, entered on a break of the green candle's high.
- * The short side is the mirror. Meant for 15m BTC and ETH.
- */
-const PULLBACK: StrategySpec = {
-  name: "Trend pullback · EMA 50/200 + RSI",
-  trigger: { kind: "break", field: "high", ago: 0, within: 2 },
-  long_entry: {
-    all: [
-      { left: ema(50), op: "above", right: ema(200) },
-      { left: ema(50), op: "above", right: ema(50, 10) },
-      { left: ema(200), op: "above", right: ema(200, 10) },
-      { left: px("close"), op: "above", right: ema(50) },
-      { left: px("low", 1), op: "below", right: ema(50, 1) },
-      { left: px("close", 1), op: "below", right: px("open", 1) },
-      { left: px("close"), op: "above", right: px("open") },
-      { left: rsi14, op: "above", right: num(45) },
-      { left: rsi14, op: "below", right: num(55) },
-    ],
-  },
-  short_entry: {
-    all: [
-      { left: ema(50), op: "below", right: ema(200) },
-      { left: ema(50), op: "below", right: ema(50, 10) },
-      { left: ema(200), op: "below", right: ema(200, 10) },
-      { left: px("close"), op: "below", right: ema(50) },
-      { left: px("high", 1), op: "above", right: ema(50, 1) },
-      { left: px("close", 1), op: "above", right: px("open", 1) },
-      { left: px("close"), op: "below", right: px("open") },
-      { left: rsi14, op: "above", right: num(45) },
-      { left: rsi14, op: "below", right: num(55) },
-    ],
-  },
-  long_exit: {
-    any: [
-      { left: rsi14, op: "above", right: num(70) },
-      { left: rsi14, op: "below", right: num(45) },
-    ],
-  },
-  short_exit: {
-    any: [
-      { left: rsi14, op: "below", right: num(30) },
-      { left: rsi14, op: "above", right: num(55) },
-    ],
-  },
-  stop: { kind: "swing", length: 5, value: 2 },
-  target: null,
-};
-
 /**
  * Building a strategy and seeing what it would have done.
  *
@@ -127,7 +46,7 @@ const PULLBACK: StrategySpec = {
  */
 export function Backtesting({ onHome }: Props) {
   const [series, setSeries] = useState<BarSeries[] | null>(null);
-  const [spec, setSpec] = useState<StrategySpec>(OPENING);
+  const [spec, setSpec] = useState<StrategySpec>(PRESETS[0].spec);
   const [source, setSource] = useState("binance");
   const [symbol, setSymbol] = useState("BTCUSDT");
   const [interval, setInterval] = useState<string>("4h");
@@ -147,6 +66,9 @@ export function Backtesting({ onHome }: Props) {
   const [minNotional, setMinNotional] = useState(115);
   const [quantityDp, setQuantityDp] = useState(3);
   const [result, setResult] = useState<BacktestResult | null>(null);
+  // What the result on screen was run with, so the reality check judges that and
+  // not whatever the form has been edited to since.
+  const [ran, setRan] = useState<BacktestRequest | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -181,10 +103,7 @@ export function Backtesting({ onHome }: Props) {
     [spec, running],
   );
 
-  const go = () => {
-    setRunning(true);
-    setError(null);
-    void runBacktest({
+  const request = (): BacktestRequest => ({
       spec,
       source,
       symbol,
@@ -201,9 +120,16 @@ export function Backtesting({ onHome }: Props) {
       min_quantity: minQuantity,
       min_notional: minNotional,
       quantity_dp: quantityDp,
-    })
+  });
+
+  const go = () => {
+    setRunning(true);
+    setError(null);
+    const sent = request();
+    void runBacktest(sent)
       .then((r) => {
         setResult(r);
+        setRan(sent);
         setError(null);
       })
       .catch((e: unknown) => {
@@ -413,16 +339,22 @@ export function Backtesting({ onHome }: Props) {
           <h3>The strategy</h3>
           <div className="row">
             <label>Start from</label>
-            <button
-              type="button"
-              onClick={() => {
-                setSpec(PULLBACK);
-                setInterval("15m");
-                setDays(1095);
+            <select
+              value=""
+              onChange={(e) => {
+                const preset = PRESETS.find((p) => p.id === e.target.value);
+                if (!preset) return;
+                setSpec(preset.spec);
+                setInterval(preset.interval);
               }}
             >
-              Trend pullback · 15m
-            </button>
+              <option value="">Saved strategies…</option>
+              {PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} · {p.interval}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="row">
             <label>Called</label>
@@ -504,6 +436,7 @@ export function Backtesting({ onHome }: Props) {
       </div>
 
       {result && <RunResult result={result} spec={spec} />}
+      {result && ran && <RealityCheck key={JSON.stringify(ran)} request={ran} />}
 
       {series !== null && series.length > 0 && (
         <details className="held-wrap">

@@ -269,6 +269,23 @@ def test_an_impossible_lot_size_is_refused_rather_than_used() -> None:
         m.history().lot_size(DAY, EXPIRY)
 
 
+def test_a_day_without_option_bars_takes_the_last_sessions_lot() -> None:
+    # The next session's index is in but its options are not yet - the chain
+    # shows DAY's trades, so a leg entered on it is sized in DAY's lot.
+    m = _straddle_day()
+    later = DAY + timedelta(days=1)
+    m.index(later)
+    assert m.history().lot_size(later, EXPIRY) == 65
+
+
+def test_a_day_without_option_bars_nearby_has_no_lot() -> None:
+    m = _straddle_day()
+    later = DAY + timedelta(days=10)
+    m.index(later)
+    with pytest.raises(ValueError, match="lot size"):
+        m.history().lot_size(later, EXPIRY)
+
+
 def test_a_stray_figure_does_not_change_the_lot() -> None:
     # One bar's open interest that is not a whole lot, among hundreds that are -
     # the shape of the volume figures seen on 3 Jul 2026.

@@ -11,6 +11,7 @@ interface Props {
 const KINDS: { id: LevelKind; name: string }[] = [
   { id: "percent", name: "a percent away" },
   { id: "candle", name: "a candle's price" },
+  { id: "candle_mid", name: "a candle's far end, or its middle" },
   { id: "atr", name: "an ATR multiple" },
   { id: "pivot", name: "a pivot level" },
   { id: "swing", name: "the last swing low / high" },
@@ -36,6 +37,7 @@ export function LevelPicker({ label, value, onChange, allowReward = false }: Pro
           const kind = e.target.value as LevelKind | "";
           if (!kind) return onChange(null);
           if (kind === "candle") onChange({ kind, field: "low", ago: 1 });
+          else if (kind === "candle_mid") onChange({ kind, ago: 0, value: 1.5, length: 14 });
           else if (kind === "atr") onChange({ kind, length: 14, value: 2 });
           else if (kind === "pivot") onChange({ kind, level: "S1" });
           else if (kind === "swing") onChange({ kind, length: 5, value: 2 });
@@ -70,9 +72,9 @@ export function LevelPicker({ label, value, onChange, allowReward = false }: Pro
             value={value.field ?? "low"}
             onChange={(e) => onChange({ ...value, field: e.target.value })}
           >
-            {["low", "high", "close", "open"].map((f) => (
-              <option key={f} value={f}>
-                {f}
+            {["low", "high", "close", "open", "far"].map((f) => (
+              <option key={f} value={f} title={f === "far" ? "Low for a long, high for a short" : undefined}>
+                {f === "far" ? "far end" : f}
               </option>
             ))}
           </select>
@@ -85,6 +87,30 @@ export function LevelPicker({ label, value, onChange, allowReward = false }: Pro
             title="Bars back. 1 is the previous candle"
           />
           <small>bars back</small>
+        </>
+      )}
+
+      {value?.kind === "candle_mid" && (
+        <>
+          <input
+            className="num"
+            type="number"
+            min={0}
+            value={value.ago ?? 0}
+            onChange={(e) => onChange({ ...value, ago: Math.max(0, Number(e.target.value)) })}
+            title="Bars back. 0 is the candle the entry fired on"
+          />
+          <small>bars back, middle if further than</small>
+          <input
+            className="num"
+            type="number"
+            min={0}
+            step="0.1"
+            value={value.value ?? 1.5}
+            onChange={(e) => onChange({ ...value, value: Math.max(0, Number(e.target.value)) })}
+            title="The candle's far end (high for a short, low for a long) is the stop, unless it is further than this many ATRs from the entry; then the stop is the candle's middle"
+          />
+          <small>× ATR</small>
         </>
       )}
 

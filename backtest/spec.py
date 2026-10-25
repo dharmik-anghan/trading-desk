@@ -31,10 +31,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import time
+from functools import cache
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from backtest.models import Trigger
+from backtest.params import placeholders
 from backtest.sessions import PRESETS, WEEKDAYS, Session, preset
 from backtest.view import Frame, View
 from marketdata.models import Interval
@@ -44,13 +46,46 @@ from marketdata.models import Interval
 #: `pivot_gap` and `pivot_gap_rank` take a period that means something different
 #: from the others: it is how many previous periods the rank is measured against,
 #: not a smoothing length, and `pivot_gap` itself ignores it entirely.
-INDICATORS = ("ema", "sma", "rsi", "atr", "pivot_gap", "pivot_gap_rank")
+INDICATORS = (
+    "ema",
+    "sma",
+    "rsi",
+    "atr",
+    "pivot_gap",
+    "pivot_gap_rank",
+    # MACD: `length` is the fast period, `slow` the slow one (26), signal fixed at 9.
+    "macd",
+    "macd_signal",
+    "macd_hist",
+    # Bollinger bands round a `length` average, `mult` deviations wide (2).
+    "bb_upper",
+    "bb_lower",
+    "bb_width",
+    "adx",
+    "plus_di",
+    "minus_di",
+    "vwap",
+    "volume_sma",
+    # The highest high and lowest low of the last `length` bars, this one included.
+    "highest",
+    "lowest",
+)
 
-#: Which of them do not average anything, so a period of 1 is not a mistake.
-UNSMOOTHED = frozenset({"pivot_gap"})
+#: Which of them do not average anything, so a period of 1 is not a mistake - or
+#: take no period at all.
+UNSMOOTHED = frozenset({"pivot_gap", "vwap"})
+
+#: The ones a chart can draw. The newer indicators have a second number or their
+#: own scale, and `backtest/lines.py` does not know them yet; listing them there
+#: would draw a line of nothing.
+DRAWABLE = frozenset({"ema", "sma", "rsi", "atr", "pivot_gap", "pivot_gap_rank"})
 
 #: A bar's four prices.
 FIELDS = ("open", "high", "low", "close")
+
+#: What an operand may measure on a bar. A trigger rests an order at one of the
+#: four prices; volume is a quantity, not a level, so it is only offered here.
+MEASURES = (*FIELDS, "volume")
 
 #: Pivot levels, by the names they are drawn with.
 LEVELS = ("S3", "S2", "S1", "P", "R1", "R2", "R3")
@@ -85,12 +120,19 @@ class Operand:
     left: Operand | None = None
     right: Operand | None = None
     op: str = ""
+    #: The second number an indicator may take: MACD's slow period, a Bollinger
+    #: band's width in deviations. Zero for the rest.
+    extra: float = 0.0
+    #: For "since": the condition whose last occurrence is being counted back to.
+    when: Condition | None = None
 
     def timeframes(self) -> set[Interval]:
         found = {self.interval} if self.interval else set()
         for side in (self.left, self.right):
             if side is not None:
                 found |= side.timeframes()
+        if self.when is not None:
+            found |= self.when.timeframes()
         return found
 
     def indicators(self) -> set[tuple[str, int, Interval | None]]:
@@ -102,11 +144,13 @@ class Operand:
         hand.
         """
         found: set[tuple[str, int, Interval | None]] = set()
-        if self.kind == "indicator":
+        if self.kind == "indicator" and self.name in DRAWABLE:
             found.add((self.name, self.length, self.interval))
         for side in (self.left, self.right):
             if side is not None:
                 found |= side.indicators()
+        if self.when is not None:
+            found |= self.when.indicators()
         return found
 
     def read(self, view: View) -> float | None:
@@ -114,6 +158,8 @@ class Operand:
             return self.value
         if self.kind == "math":
             return self._arithmetic(view)
+        if self.kind == "since":
+            return self._since(view)
 
         frame = view.frame(self.interval) if self.interval else view.base
         if self.kind == "price":
@@ -138,7 +184,23 @@ class Operand:
             return frame.pivot_gap(self.ago)
         if self.name == "pivot_gap_rank":
             return frame.pivot_gap_rank(self.length, self.ago)
+        if self.name in INDICATORS:
+            return frame.line(self.name, self.length, self.extra, self.ago)
         raise SpecError(f"there is no indicator called {self.name!r}")
+
+    def _since(self, view: View) -> float | None:
+        """Closed bars since the condition last held; 0 if it holds now.
+
+        The condition is asked of each earlier bar by reading everything in it
+        that many bars further back, which is why it has to be on the traded
+        timeframe: a higher timeframe does not move one bar at a time. None when
+        it has not held within `length` bars - "a long time ago" is not a number.
+        """
+        assert self.when is not None
+        for back in range(self.length + 1):
+            if _shifted_by(self.when, self.ago + back).holds(view):
+                return float(back)
+        return None
 
     def _arithmetic(self, view: View) -> float | None:
         if self.left is None or self.right is None:
@@ -167,12 +229,20 @@ class Operand:
         if self.kind == "math":
             assert self.left and self.right
             return f"({self.left.describe()} {self.op} {self.right.describe()})"
+        if self.kind == "since":
+            assert self.when
+            return f"bars since {self.when.describe()} (within {self.length}){back}"
         if self.kind == "indicator":
             if self.name == "pivot_gap":
                 return f"pivot gap %{where}{back}"
             if self.name == "pivot_gap_rank":
                 return f"pivot gap percentile over {self.length}{where}{back}"
-            return f"{self.name.upper()} {self.length}{where}{back}"
+            if self.name == "vwap":
+                return f"VWAP{where}{back}"
+            label = self.name.replace("_", " ").upper()
+            if self.extra:
+                return f"{label} {self.length}/{self.extra:g}{where}{back}"
+            return f"{label} {self.length}{where}{back}"
         if self.kind == "price":
             return f"{self.name}{where}{back}"
         return f"pivot {self.name}{where}{back}"
@@ -269,10 +339,20 @@ class Condition:
 
 
 def _shifted(operand: Operand) -> Operand:
-    """The same operand, one bar earlier.
+    """The same operand, one bar earlier."""
+    return _shifted_operand(operand, 1)
+
+
+@cache
+def _shifted_operand(operand: Operand, bars: int) -> Operand:
+    """The same operand, `bars` bars earlier.
 
     Recursive through arithmetic, so "close - 2 x ATR" shifts both the close and
     the ATR rather than only the outermost thing.
+
+    Cached: operands are frozen, and a crossing asks for the same shifted pair on
+    every bar of a run - a million rebuilt dataclasses was a quarter of a
+    three-year run's time.
     """
     if operand.kind == "value":
         return operand
@@ -281,16 +361,36 @@ def _shifted(operand: Operand) -> Operand:
         return Operand(
             kind="math",
             op=operand.op,
-            left=_shifted(operand.left),
-            right=_shifted(operand.right),
+            left=_shifted_operand(operand.left, bars),
+            right=_shifted_operand(operand.right, bars),
         )
     return Operand(
         kind=operand.kind,
         name=operand.name,
         length=operand.length,
         value=operand.value,
-        ago=operand.ago + 1,
+        ago=operand.ago + bars,
         interval=operand.interval,
+        extra=operand.extra,
+        when=operand.when,
+    )
+
+
+@cache
+def _shifted_by(condition: Condition, bars: int) -> Condition:
+    """The same condition, asked as of `bars` bars earlier."""
+    if bars == 0:
+        return condition
+    if condition.kind != "compare":
+        return Condition(
+            kind=condition.kind, of=tuple(_shifted_by(c, bars) for c in condition.of)
+        )
+    assert condition.left and condition.right
+    return Condition(
+        kind="compare",
+        op=condition.op,
+        left=_shifted_operand(condition.left, bars),
+        right=_shifted_operand(condition.right, bars),
     )
 
 
@@ -313,13 +413,29 @@ class Level:
     #: "swing": the widest stop allowed, as a percentage of the entry (0 = any).
     value: float = 0.0
     length: int = 14
-    #: For "candle": which price, and how many bars back.
+    #: For "candle": which price, and how many bars back. "candle_mid" takes the
+    #: bars back too, and uses `value` as the ATR multiple past which it halves.
     name: str = "low"
     ago: int = 1
     interval: Interval | None = None
 
     def timeframes(self) -> set[Interval]:
         return {self.interval} if self.interval else set()
+
+    def _candle_or_mid(self, frame: Frame, entry: float, long: bool) -> float | None:
+        """The far end of the candle `ago` back - its low for a long, its high for
+        a short - or its midpoint when that is further from the entry than
+        `value` ATRs. A wide setup candle would otherwise set a stop too big to
+        be worth the trade; halving it keeps the trade at half the risk."""
+        high, low = frame.price("high", self.ago), frame.price("low", self.ago)
+        if high is None or low is None:
+            return None
+        far = low if long else high
+        if self.value:
+            width = frame.atr(self.length)
+            if width is not None and abs(far - entry) > self.value * width:
+                return (high + low) / 2
+        return far
 
     def price(
         self, view: View, entry: float, long: bool, *, stop: float | None = None
@@ -336,7 +452,12 @@ class Level:
         if self.kind == "percent":
             return entry * (1 + away * self.value / 100.0)
         if self.kind == "candle":
-            return frame.price(self.name, self.ago)
+            # "far" is the candle's extreme against the trade: its low for a long,
+            # its high for a short - one stop that reads right for both sides.
+            name = ("low" if long else "high") if self.name == "far" else self.name
+            return frame.price(name, self.ago)
+        if self.kind == "candle_mid":
+            return self._candle_or_mid(frame, entry, long)
         if self.kind == "atr":
             width = frame.atr(self.length)
             return entry + away * width * self.value if width is not None else None
@@ -480,9 +601,22 @@ def operand(raw: Any) -> Operand:
         )
     if kind == "price":
         name = str(raw.get("field", "close")).lower()
-        if name not in FIELDS:
-            raise SpecError(f"a candle has no {name!r}; pick one of {', '.join(FIELDS)}")
+        if name not in MEASURES:
+            raise SpecError(f"a candle has no {name!r}; pick one of {', '.join(MEASURES)}")
         return Operand(kind="price", name=name, ago=ago, interval=interval)
+    if kind == "since":
+        when = condition(raw.get("when"))
+        if when.timeframes():
+            raise SpecError(
+                "bars since a condition can only count on the timeframe being traded; "
+                "leave the timeframe off the condition's parts"
+            )
+        if _mentions_since(when):
+            raise SpecError("bars since cannot be built from another bars since")
+        reach = _whole(raw.get("max", 50), "max")
+        if not 1 <= reach <= 1000:
+            raise SpecError("bars since looks back between 1 and 1000 bars")
+        return Operand(kind="since", length=reach, ago=ago, when=when)
     if kind == "indicator":
         name = str(raw.get("name", "")).lower()
         if name not in INDICATORS:
@@ -493,13 +627,43 @@ def operand(raw: Any) -> Operand:
         length = _whole(raw.get("length", 14), "length")
         if length < 1 and name not in UNSMOOTHED:
             raise SpecError(f"{name.upper()} needs a period of at least 1")
-        return Operand(kind="indicator", name=name, length=length, ago=ago, interval=interval)
+        extra = _extra(name, raw, length)
+        return Operand(
+            kind="indicator", name=name, length=length, ago=ago, interval=interval, extra=extra
+        )
     if kind == "pivot":
         name = str(raw.get("level", "P")).upper()
         if name not in LEVELS:
             raise SpecError(f"{name!r} is not a pivot level; pick one of {', '.join(LEVELS)}")
         return Operand(kind="pivot", name=name, ago=ago, interval=interval)
     raise SpecError(f"{kind!r} is not something that can be measured")
+
+
+def _extra(name: str, raw: dict[str, Any], length: int) -> float:
+    """The second number an indicator takes, defaulted to the usual one."""
+    if name.startswith("macd"):
+        slow = _whole(raw.get("slow", 26), "slow")
+        if slow <= length:
+            raise SpecError(
+                f"MACD's slow period ({slow}) has to be longer than its fast ({length})"
+            )
+        return float(slow)
+    if name.startswith("bb_"):
+        mult = float(raw.get("mult", 2.0))
+        if mult <= 0:
+            raise SpecError("a Bollinger band has to be more than zero deviations wide")
+        return mult
+    return 0.0
+
+
+def _mentions_since(cond: Condition) -> bool:
+    def operand_has(o: Operand | None) -> bool:
+        if o is None:
+            return False
+        return o.kind == "since" or operand_has(o.left) or operand_has(o.right)
+
+    inner = any(_mentions_since(c) for c in cond.of)
+    return operand_has(cond.left) or operand_has(cond.right) or inner
 
 
 def condition(raw: Any) -> Condition:
@@ -530,9 +694,10 @@ def level(raw: Any) -> Level | None:
     if not isinstance(raw, dict):
         raise SpecError(f"{raw!r} is not a stop or a target")
     kind = str(raw.get("kind", "")).lower()
-    if kind not in ("percent", "candle", "atr", "pivot", "swing", "reward"):
+    if kind not in ("percent", "candle", "candle_mid", "atr", "pivot", "swing", "reward"):
         raise SpecError(
-            f"{kind!r} is not a kind of level; pick percent, candle, atr, pivot, swing or reward"
+            f"{kind!r} is not a kind of level; "
+            "pick percent, candle, candle_mid, atr, pivot, swing or reward"
         )
     return Level(
         kind=kind,
@@ -649,6 +814,15 @@ def parse(raw: dict[str, Any]) -> StrategySpec:
     """
     if not isinstance(raw, dict):
         raise SpecError("a strategy is an object")
+    unbound = placeholders(raw)
+    if unbound:
+        # A parametrised document is a family of strategies, not one. Which one is
+        # chosen by `params.bind`; guessing a value here would run something
+        # nobody asked for.
+        raise SpecError(
+            f"{', '.join(sorted(unbound))} still has to be given a value; "
+            "bind the parameters before running"
+        )
 
     spec = StrategySpec(
         name=str(raw.get("name") or "Untitled"),

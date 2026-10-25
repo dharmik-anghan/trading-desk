@@ -102,8 +102,8 @@ def test_a_strategy_with_no_way_out_is_refused() -> None:
 @pytest.mark.parametrize(
     ("raw", "message"),
     [
-        ({"kind": "indicator", "name": "macd", "length": 9}, "no indicator called"),
-        ({"kind": "price", "field": "vwap"}, "a candle has no"),
+        ({"kind": "indicator", "name": "stochastic", "length": 9}, "no indicator called"),
+        ({"kind": "price", "field": "wick"}, "a candle has no"),
         ({"kind": "pivot", "level": "R9"}, "not a pivot level"),
         ({"kind": "indicator", "name": "ema", "length": 0}, "period of at least 1"),
         ({"kind": "indicator", "name": "ema", "length": 5, "tf": "7m"}, "not a bar size"),
@@ -307,3 +307,157 @@ def test_an_exit_is_evaluated_per_side() -> None:
 
     assert rule.exit(view, long).action is Action.EXIT
     assert rule.exit(view, short).action is Action.NOTHING
+
+
+# --------------------------------------------------------------------------
+# The newer indicators and "bars since"
+# --------------------------------------------------------------------------
+
+
+def _wave(n: int) -> list[float]:
+    return [100.0 + (i % 17) * 1.5 - (i % 5) for i in range(n)]
+
+
+def test_macd_takes_its_slow_period_and_defaults_to_the_usual_one() -> None:
+    bars = _bars(_wave(120))
+    view = _at(bars, 100)
+
+    usual = operand({"kind": "indicator", "name": "macd", "length": 12})
+    longer = operand({"kind": "indicator", "name": "macd", "length": 12, "slow": 40})
+
+    assert usual.extra == 26 and longer.extra == 40
+    assert usual.read(view) != longer.read(view)
+    assert usual.read(view) == view.base.line("macd", 12, 26.0)
+
+
+def test_macd_with_a_slow_period_that_is_not_slower_is_refused() -> None:
+    with pytest.raises(SpecError, match="slow period"):
+        operand({"kind": "indicator", "name": "macd", "length": 20, "slow": 20})
+
+
+def test_a_bollinger_band_reads_from_its_own_width() -> None:
+    bars = _bars(_wave(80))
+    view = _at(bars, 60)
+    wide = operand({"kind": "indicator", "name": "bb_upper", "length": 20, "mult": 3.0})
+    narrow = operand({"kind": "indicator", "name": "bb_upper", "length": 20, "mult": 1.0})
+    mid = operand({"kind": "indicator", "name": "sma", "length": 20}).read(view)
+
+    assert mid is not None
+    assert (wide.read(view) or 0) - mid == pytest.approx(3 * ((narrow.read(view) or 0) - mid))
+    with pytest.raises(SpecError, match="more than zero"):
+        operand({"kind": "indicator", "name": "bb_lower", "length": 20, "mult": 0})
+
+
+def test_volume_is_something_a_bar_can_be_measured_by_and_a_trigger_cannot_rest_at() -> None:
+    bars = _bars([100.0] * 10)
+    assert operand({"kind": "price", "field": "volume"}).read(_at(bars, 5)) == 1.0
+    with pytest.raises(SpecError, match="candle has no"):
+        parse(
+            {
+                "long_entry": {"left": 1, "op": "above", "right": 0},
+                "stop": {"kind": "percent", "value": 1},
+                "trigger": {"kind": "break", "field": "volume"},
+            }
+        )
+
+
+def test_the_newer_indicators_are_not_offered_to_a_chart_that_cannot_draw_them() -> None:
+    spec = parse(
+        {
+            "long_entry": {
+                "left": {"kind": "indicator", "name": "macd", "length": 12},
+                "op": "above",
+                "right": {"kind": "indicator", "name": "ema", "length": 20},
+            },
+            "stop": {"kind": "percent", "value": 1},
+        }
+    )
+    assert spec.indicators() == [("ema", 20, None)]
+
+
+def _volume_is(value: float) -> dict[str, object]:
+    return {"left": {"kind": "price", "field": "volume"}, "op": "equals", "right": value}
+
+
+def _ramp_volume(n: int) -> list[Bar]:
+    return [
+        Bar(
+            ts=START + timedelta(minutes=5 * i), open=100, high=101, low=99, close=100, volume=i
+        )
+        for i in range(n)
+    ]
+
+
+def test_bars_since_counts_closed_bars_back_to_the_last_time_it_held() -> None:
+    bars = _ramp_volume(30)
+    since = operand({"kind": "since", "when": _volume_is(5), "max": 20})
+
+    assert since.read(_at(bars, 5)) == 0.0
+    assert since.read(_at(bars, 8)) == 3.0
+    assert since.read(_at(bars, 20)) == 15.0
+    # Before it ever held there is no answer, and not a zero.
+    assert since.read(_at(bars, 4)) is None
+
+
+def test_bars_since_gives_up_past_its_reach() -> None:
+    bars = _ramp_volume(30)
+    since = operand({"kind": "since", "when": _volume_is(5), "max": 5})
+    assert since.read(_at(bars, 10)) == 5.0
+    assert since.read(_at(bars, 11)) is None
+
+
+def test_bars_since_read_a_bar_back_is_the_answer_a_bar_ago() -> None:
+    """A crossing re-reads each side one bar back, so this has to shift cleanly."""
+    bars = _ramp_volume(30)
+    now = operand({"kind": "since", "when": _volume_is(5), "max": 20})
+    before = operand({"kind": "since", "when": _volume_is(5), "max": 20, "ago": 1})
+
+    assert before.read(_at(bars, 9)) == now.read(_at(bars, 8)) == 3.0
+
+
+def test_bars_since_cannot_see_bars_that_have_not_closed() -> None:
+    quiet = _ramp_volume(30)
+    loud = [*quiet[:10], *[b.__class__(**{**b.__dict__, "volume": 5.0}) for b in quiet[10:]]]
+    since = operand({"kind": "since", "when": _volume_is(5), "max": 20})
+
+    assert since.read(_at(quiet, 9)) == since.read(_at(loud, 9)) == 4.0
+
+
+def test_bars_since_must_stay_on_the_traded_timeframe_and_cannot_nest() -> None:
+    hourly = {"left": {"kind": "indicator", "name": "ema", "length": 5, "tf": "1h"},
+              "op": "above", "right": 1}
+    with pytest.raises(SpecError, match="timeframe being traded"):
+        operand({"kind": "since", "when": hourly})
+    inner = {"left": {"kind": "since", "when": _volume_is(5)}, "op": "below", "right": 3}
+    with pytest.raises(SpecError, match="another bars since"):
+        operand({"kind": "since", "when": inner})
+    with pytest.raises(SpecError, match="between 1 and 1000"):
+        operand({"kind": "since", "when": _volume_is(5), "max": 0})
+
+
+def test_a_rule_can_wait_for_a_pullback_after_a_breakout() -> None:
+    """The reason the operand exists: 'within three bars of the breakout'."""
+    breakout = {"left": {"kind": "price", "field": "close"}, "op": "above",
+                "right": {"kind": "indicator", "name": "highest", "length": 10, "ago": 1}}
+    spec = parse(
+        {
+            "long_entry": {
+                "all": [
+                    {"left": {"kind": "since", "when": breakout, "max": 5}, "op": "below",
+                     "right": 3},
+                    {"left": {"kind": "price", "field": "close"}, "op": "below",
+                     "right": {"kind": "price", "field": "close", "ago": 1}},
+                ]
+            },
+            "stop": {"kind": "percent", "value": 1},
+        }
+    )
+    closes = [100.0] * 15 + [110.0, 112.0, 111.0, 110.5, 110.0, 109.0, 108.0, 107.0]
+    rule = SpecRule(spec)
+
+    bars = _bars(closes)
+    taken = [i for i in range(len(closes)) if rule.entry(_at(bars, i)).action is Action.ENTER]
+
+    # The last breakout is bar 16 (112 clears 15's high). Bars 17 and 18 are one and
+    # two bars after it and close lower; 19 is three after, outside "below 3".
+    assert taken == [17, 18]

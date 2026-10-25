@@ -124,6 +124,34 @@ def test_an_old_settled_expiry_is_fetched_whole_into_the_ledger() -> None:
     assert store.held([c.symbol for c in contracts]) == {c.symbol for c in contracts}
 
 
+class _UnpublishedSource(_LiveSource):
+    """Fyers just after an expiry: nothing yet from its last sessions."""
+
+    def __init__(self, contracts: list[Contract], listed_on: date, published_to: date):
+        super().__init__(contracts, listed_on, live=[])
+        self._published_to = published_to
+
+    def candles(self, symbol: str, start: date, end: date) -> list[Candle]:
+        return super().candles(symbol, start, min(end, self._published_to))
+
+
+def test_a_just_settled_expiry_not_published_to_its_end_is_kept_live() -> None:
+    """The night after the 13 Oct weekly, with bars only to the 9th: ledgered,
+    it would stay cut short for good. Kept apart, the next refresh fetches it."""
+    contracts = [_live(23500), _live(23500, Kind.PUT)]
+    source = _UnpublishedSource(contracts, date(2026, 10, 1), published_to=date(2026, 10, 9))
+    store = OptionStore()
+    today = date(2026, 10, 14)
+    p = fetch_for(store, source, Progress("NIFTY", LIVE, LIVE), today=today, now=lambda: FETCHED)
+    assert (p.state, p.done) == ("done", 2)
+    assert store.held([c.symbol for c in contracts]) == set()
+    assert _history(store).expiry_status([LIVE]) == {LIVE: ("live", datetime(2026, 10, 9, 9, 15))}
+
+    published = _LiveSource(contracts, listed_on=date(2026, 10, 1), live=[])
+    fetch_for(store, published, Progress("NIFTY", LIVE, LIVE), today=today, now=lambda: FETCHED)
+    assert store.held([c.symbol for c in contracts]) == {c.symbol for c in contracts}
+
+
 def test_a_reader_and_a_writer_in_one_process_wait_for_each_other(tmp_path: Path) -> None:
     """DuckDB refuses them as "a different configuration" rather than a lock;
     `connect` waits that out the same way."""

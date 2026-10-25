@@ -166,6 +166,7 @@ export interface OptbtRunRequest {
   reentry: OptbtReEntry;
   entry_signal: OptbtEntrySignal;
   exit_signal: OptbtExitSignal;
+  chart?: "spot" | "future";
   slippage: number;
   min_slip: number;
   brokerage: number;

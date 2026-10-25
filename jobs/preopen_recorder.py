@@ -93,6 +93,7 @@ class PreOpenRecorder:
         self.last_error = None
         if result.written:
             self.last_day = result.day
-            log.info("pre-open for %s recorded: %s, %d stocks",
-                     result.day, result.outcome, result.rows)
+            log.info(
+                "pre-open for %s recorded: %s, %d stocks", result.day, result.outcome, result.rows
+            )
         return result.written

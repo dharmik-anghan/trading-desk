@@ -23,6 +23,7 @@ from broker.errors import RateLimited as BrokerRateLimited
 from broker.models import Candle
 from marketdata.errors import RateLimited, Unavailable
 from marketdata.models import Bar, Fetched, Interval
+from venues.calendar import IST
 
 log = logging.getLogger(__name__)
 
@@ -58,16 +59,31 @@ def to_bar(candle: Candle) -> Bar:
         volume=candle.volume,
     )
 
+def weekday_bars(bars: list[Bar]) -> list[Bar]:
+    """Bars whose IST day is a weekday.
+
+    For the live fetch only. NSE runs mock trading sessions on Saturdays and
+    Fyers' live candle carries their ticks as if they traded: on 10 Oct 2026 that
+    was a NIFTY daily bar 2,200 points above the days either side of it. Its
+    history endpoint does not serve mock sessions but does serve the real weekend
+    ones - Budget days, Muhurat, the 2024 special sessions - so the daily updater
+    and the backfill keep weekends, and those fill a real one in after the fact.
+    """
+    return [b for b in bars if b.ts.astimezone(IST).weekday() < 5]
+
+
 class VenueBars:
     """Bars from a broker adapter, for storing under that venue's name."""
 
-    def __init__(self, broker: Callable[[], MarketData]) -> None:
+    def __init__(self, broker: Callable[[], MarketData], *, weekdays_only: bool = False) -> None:
         #: How to get an adapter, rather than one adapter. The options venue's
         #: access token expires every morning and is replaced by whoever asks for
         #: it next, so a source that held one adapter for the life of the process
         #: would be fetching with a dead token by the second day - and a chart
         #: that stops updating overnight is the bug this whole path exists to fix.
         self._broker = broker
+        #: For an NSE venue. See `weekday_bars`.
+        self._weekdays_only = weekdays_only
 
     def fetch(self, symbol: str, interval: Interval, days: int) -> Fetched:
         """Whatever the venue will give for the last `days`.
@@ -94,4 +110,6 @@ class VenueBars:
 
         bars = [to_bar(c) for c in candles]
         bars.sort(key=lambda b: b.ts)
+        if self._weekdays_only:
+            bars = weekday_bars(bars)
         return Fetched(bars=bars, name=symbol, currency="")

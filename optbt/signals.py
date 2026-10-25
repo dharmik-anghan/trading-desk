@@ -373,7 +373,8 @@ class _Frame:
 class Signals:
     """Every timeframe the conditions read, fed one closed minute bar at a time."""
 
-    def __init__(self, conditions: Iterable[Condition]) -> None:
+    def __init__(self, conditions: Iterable[Condition], chart: str = "spot") -> None:
+        self._chart = chart
         by_tf: dict[int, list[Operand]] = {}
         for c in conditions:
             by_tf.setdefault(c.timeframe, []).extend((c.left, c.right))
@@ -393,11 +394,11 @@ class Signals:
             frame.flush(context)
         if not self._warm:
             self._warm = True
-            for bars in view.sessions_before(self.warmup_sessions()):
+            for bars in view.chart_sessions_before(self.warmup_sessions(), self._chart):
                 self._feed(bars, context)
 
     def on_bar(self, view: View) -> None:
-        bar = view.bar()
+        bar = view.chart_bar(self._chart)
         last = view.bars_left == 0
         for frame in self._frames.values():
             frame.add(bar, last, lambda: view.context)

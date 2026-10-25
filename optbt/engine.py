@@ -188,9 +188,7 @@ class Context:
         target: Level | None = None,
     ) -> None:
         """Open a leg. `stop` and `target` rest that far from its fill price."""
-        self._engine.pending.append(
-            _Order(key, side, lots, tag, "open", stop=stop, target=target)
-        )
+        self._engine.pending.append(_Order(key, side, lots, tag, "open", stop=stop, target=target))
 
     def close(self, leg: Leg, reason: str) -> None:
         if leg.is_open and not any(o.closes is leg for o in self._engine.pending):

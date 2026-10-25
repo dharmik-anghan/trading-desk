@@ -1,10 +1,10 @@
 /**
  * The backend. Overridable (VITE_API_BASE) so a second copy can run beside the desk.
- * In dev it is the page's own origin: Vite proxies /api, which is what lets a
- * phone on a tunnel reach it.
+ * Otherwise it is the page's own origin: in dev Vite proxies /api, and the built
+ * app is served by the backend itself - either way a phone on a tunnel reaches it,
+ * where 127.0.0.1 would be the phone.
  */
-export const API_BASE: string =
-  import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? "" : "http://127.0.0.1:8000");
+export const API_BASE: string = import.meta.env.VITE_API_BASE ?? "";
 
 /**
  * A failure the desk can explain rather than just show as red text.

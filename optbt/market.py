@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 SESSION_OPEN = NSE_OPEN
 SESSION_LAST_BAR = time(15, 29)
 
+
 @dataclass(frozen=True, order=True)
 class OptionKey:
     """One option contract, by what it is rather than by a broker's symbol."""
@@ -92,6 +93,7 @@ class View:
         self._bars = bars
         self._i = -1
         self._sessions: dict[date, int] = {}
+        self._future: dict[datetime, Bar] | None = None
 
     @property
     def context(self) -> Context:
@@ -133,6 +135,31 @@ class View:
     def bar(self) -> Bar:
         """The index's last closed bar, whole."""
         return self._bars[self._i]
+
+    def chart_bar(self, chart: str = "spot") -> Bar:
+        """The last closed bar on the chart the signals are read from.
+
+        "future" is the near-month future; a minute it did not trade (or a day the
+        store has none) reads the index's bar instead.
+        """
+        bar = self.bar()
+        if chart != "future":
+            return bar
+        if self._future is None:
+            self._future = {b.ts: b for b in self._history.future_day(self.day)}
+        return self._future.get(bar.ts, bar)
+
+    def chart_sessions_before(self, count: int, chart: str = "spot") -> list[list[Bar]]:
+        """`sessions_before` on the chosen chart."""
+        if chart != "future":
+            return self.sessions_before(count)
+        out = []
+        for spot in self.sessions_before(count):
+            if not spot:
+                continue
+            fut = {b.ts: b for b in self._history.future_day(spot[0].ts.date())}
+            out.append([fut.get(b.ts, b) for b in spot])
+        return out
 
     def sessions_before(self, count: int) -> list[list[Bar]]:
         """The index's bars for up to `count` sessions before today, oldest first.

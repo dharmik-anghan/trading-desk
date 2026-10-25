@@ -71,7 +71,7 @@ class ExpiryChoice:
 
     @classmethod
     def from_legacy(cls, rule: str, days: int = 45) -> ExpiryChoice:
-        """"week", "next_week", "month", "next_month" or "days", as they were."""
+        """ "week", "next_week", "month", "next_month" or "days", as they were."""
         series, nth = cls.LEGACY[rule]
         return cls(series, nth, 0, days)  # type: ignore[arg-type]
 
@@ -281,6 +281,9 @@ class LegsConfig:
     #: on them. See optbt.signals.
     entry_signal: EntrySignal = field(default_factory=EntrySignal)
     exit_signal: ExitSignal = field(default_factory=ExitSignal)
+    #: The chart the signals are read from: the index ("spot") or the near-month
+    #: future. Strikes, stops and settlement stay on the index either way.
+    chart: str = "spot"
 
 
 def atm_strike(chain: list[Quote], spot: float) -> float | None:
@@ -319,6 +322,7 @@ def pick_expiry(view: View, choice: ExpiryChoice, *, overnight: bool = False) ->
     Tuesday 8 Sep 2026 bought the contract expiring that afternoon, and its
     stops were hit within fifteen minutes.
     """
+
     def enough(e: date) -> bool:
         return choice.min_left == 0 or view.sessions_to(e) >= choice.min_left
 
@@ -358,9 +362,7 @@ def pick_expiry(view: View, choice: ExpiryChoice, *, overnight: bool = False) ->
 EXPIRY_CLOSE = NSE_CLOSE
 
 
-def strike_deltas(
-    chain: list[Quote], spot: float, kind: Kind, now: datetime
-) -> dict[float, float]:
+def strike_deltas(chain: list[Quote], spot: float, kind: Kind, now: datetime) -> dict[float, float]:
     """Each quoted strike's delta, solved from its own premium.
 
     Black-76 on the forward, with the forward read off the chain by put-call
@@ -492,7 +494,7 @@ class LegStrategy:
         self._range_hi: float | None = None
         self._range_lo: float | None = None
         conditions = config.entry_signal.conditions + config.exit_signal.conditions
-        self._signals = Signals(conditions) if conditions else None
+        self._signals = Signals(conditions, config.chart) if conditions else None
         #: Waiting on the entry signal: since the entry time, for the first
         #: entry; since a qualifying close, for a re-entry.
         self._waiting = False
@@ -615,7 +617,11 @@ class LegStrategy:
 
     def _try_reentry(self, ctx: Context) -> None:
         re = self.config.reentry
-        if not re.enabled or self.config.hold != "intraday" or self._reentries_today >= re.max_times:
+        if (
+            not re.enabled
+            or self.config.hold != "intraday"
+            or self._reentries_today >= re.max_times
+        ):
             return
         closed = ctx.last_closed
         if closed is not None and closed.id != self._reacted_closed_id:
@@ -785,7 +791,6 @@ class LegStrategy:
                     if against:
                         ctx.set_stop(leg, leg.entry_price)
                         ctx.note(f"stop on {leg.key} moved to cost {leg.entry_price:.2f}")
-
 
     def _adjust(self, ctx: Context) -> None:
         """Move the untested side in, if the market has reached a wing."""

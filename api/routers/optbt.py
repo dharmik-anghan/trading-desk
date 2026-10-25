@@ -306,6 +306,8 @@ class StrategyIn(BaseModel):
     reentry: ReEntryIn = Field(default_factory=ReEntryIn)
     entry_signal: EntrySignalIn = Field(default_factory=EntrySignalIn)
     exit_signal: ExitSignalIn = Field(default_factory=ExitSignalIn)
+    #: Which chart the signals read: the index or the near-month future.
+    chart: Literal["spot", "future"] = "spot"
     #: Slippage per fill as a fraction of premium, and its floor in rupees.
     slippage: float = Field(default=0.003, ge=0, le=0.1)
     min_slip: float = Field(default=0.05, ge=0, le=5)

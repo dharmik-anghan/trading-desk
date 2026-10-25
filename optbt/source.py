@@ -44,6 +44,10 @@ class MarketSource(Protocol):
         """The index's session bars for a day, in order."""
         ...
 
+    def future_day(self, day: date) -> list[Bar]:
+        """The near-month future's session bars for a day; empty when not stored."""
+        ...
+
     def daily(self, symbol: str) -> list[tuple[date, float, float, float, float]]:
         """`symbol`'s sessions as (day, open, high, low, close)."""
         ...

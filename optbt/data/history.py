@@ -223,7 +223,6 @@ class History:
         ).fetchone()
         return float(row[0]) if row else None
 
-
     def index_day(self, day: date) -> list[Bar]:
         """The index's session bars for a day, in order."""
         if day not in self._index:
@@ -238,6 +237,28 @@ class History:
             ).fetchall()
             self._index = {day: [Bar(*row) for row in rows]}  # one day held at a time
         return self._index[day]
+
+    def future_day(self, day: date) -> list[Bar]:
+        """The near-month future's session bars for a day, in order.
+
+        The nearest monthly that has not expired before `day`. Empty when the
+        store holds no bars for it that day - the caller falls back to the index.
+        """
+        expiry = next((e for e in self.monthly_expiries() if e >= day), None)
+        if expiry is None:
+            return []
+        rows = self._q(
+            "SELECT ts, open, high, low, close, volume FROM option_bar "
+            "WHERE underlying = ? AND kind = 'FUT' AND expiry = ? AND ts >= ? AND ts <= ? "
+            "ORDER BY ts",
+            [
+                self.underlying,
+                expiry,
+                datetime.combine(day, SESSION_OPEN),
+                datetime.combine(day, SESSION_LAST_BAR),
+            ],
+        ).fetchall()
+        return [Bar(*row) for row in rows]
 
     # --------------------------------------------------------------- options
 
@@ -389,11 +410,29 @@ class History:
             if lot is None:
                 # Too little on this expiry today - the day's contracts together,
                 # dominated by the near expiries, still say what a trade is sized in.
-                lot = _vote_lot(self._figures(day, None), known)
+                figures = self._figures(day, None)
+                lot = _vote_lot(figures, known)
+                if not any(figures):
+                    # No option bars at all that day - one still being fetched, or
+                    # a gap - while the chain shows the last session's trades from
+                    # up to ASOF_LOOKBACK back. Those were sized in that session's lot.
+                    lot = self._last_lot(day, known)
             if lot is None:
                 raise ValueError(f"no lot size fits the open interest on {day} for {expiry}")
             self._lots[(day, expiry)] = lot
         return self._lots[(day, expiry)]
+
+    def _last_lot(self, day: date, known: frozenset[int]) -> int | None:
+        """The lot of the latest session before `day`, within ASOF_LOOKBACK, that
+        has option bars."""
+        row = self._q(
+            "SELECT max(CAST(ts AS DATE)) FROM option_bar WHERE underlying = ? "
+            "AND kind <> 'FUT' AND ts < ? AND ts >= ?",
+            [self.underlying, day, day - self.ASOF_LOOKBACK],
+        ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return _vote_lot(self._figures(row[0], None), known)
 
     def _figures(self, day: date, expiry: date | None) -> tuple[list[int], list[int]]:
         """The day's distinct open-interest and volume figures."""
@@ -411,9 +450,7 @@ class History:
         return [r[0] for r in oi], [r[0] for r in volume]
 
 
-def _vote_lot(
-    figures: tuple[Sequence[int], Sequence[int]], known: frozenset[int]
-) -> int | None:
+def _vote_lot(figures: tuple[Sequence[int], Sequence[int]], known: frozenset[int]) -> int | None:
     """The largest known lot that divides at least LOT_VOTE of the open interest
     figures or of the volume figures, whichever supports it better."""
 

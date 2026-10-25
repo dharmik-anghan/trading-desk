@@ -29,6 +29,14 @@ class SpecRule:
         self.name = spec.name
         self.context: tuple[Interval, ...] = spec.context
 
+    def _wants(self, view: View) -> tuple[bool, bool]:
+        """Whether the long and the short conditions hold on this bar."""
+        spec = self.spec
+        return (
+            spec.long_entry is not None and spec.long_entry.holds(view),
+            spec.short_entry is not None and spec.short_entry.holds(view),
+        )
+
     def entry(self, view: View) -> Intent:
         spec = self.spec
         # Judged on the bar's close, the instant the decision is made, and before
@@ -36,8 +44,7 @@ class SpecRule:
         # not a signal, so there is nothing to evaluate.
         if view.at is not None and not in_any(spec.sessions, view.at):
             return Intent.nothing()
-        wants_long = spec.long_entry is not None and spec.long_entry.holds(view)
-        wants_short = spec.short_entry is not None and spec.short_entry.holds(view)
+        wants_long, wants_short = self._wants(view)
         if wants_long and wants_short:
             # Both at once is a strategy that contradicts itself. Standing aside
             # keeps that visible instead of resolving it into a trade.

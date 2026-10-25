@@ -1,0 +1,135 @@
+{
+  "name": "Donchian breakout, ADX filter",
+  "params": {
+    "entry_len": {
+      "type": "int",
+      "low": 10,
+      "high": 150,
+      "default": 20
+    },
+    "exit_len": {
+      "type": "int",
+      "low": 5,
+      "high": 75,
+      "default": 10
+    },
+    "adx_min": {
+      "type": "int",
+      "low": 10,
+      "high": 40,
+      "default": 20
+    },
+    "stop_atr": {
+      "type": "float",
+      "low": 1.0,
+      "high": 6.0,
+      "step": 0.25,
+      "default": 3.0
+    }
+  },
+  "constraints": [
+    {
+      "lt": [
+        "exit_len",
+        "entry_len"
+      ]
+    }
+  ],
+  "long_entry": {
+    "all": [
+      {
+        "op": "crosses_above",
+        "left": {
+          "kind": "price",
+          "field": "close"
+        },
+        "right": {
+          "kind": "indicator",
+          "name": "highest",
+          "length": {
+            "param": "entry_len"
+          },
+          "ago": 1
+        }
+      },
+      {
+        "op": "above",
+        "left": {
+          "kind": "indicator",
+          "name": "adx",
+          "length": 14
+        },
+        "right": {
+          "param": "adx_min"
+        }
+      }
+    ]
+  },
+  "short_entry": {
+    "all": [
+      {
+        "op": "crosses_below",
+        "left": {
+          "kind": "price",
+          "field": "close"
+        },
+        "right": {
+          "kind": "indicator",
+          "name": "lowest",
+          "length": {
+            "param": "entry_len"
+          },
+          "ago": 1
+        }
+      },
+      {
+        "op": "above",
+        "left": {
+          "kind": "indicator",
+          "name": "adx",
+          "length": 14
+        },
+        "right": {
+          "param": "adx_min"
+        }
+      }
+    ]
+  },
+  "long_exit": {
+    "op": "below",
+    "left": {
+      "kind": "price",
+      "field": "close"
+    },
+    "right": {
+      "kind": "indicator",
+      "name": "lowest",
+      "length": {
+        "param": "exit_len"
+      },
+      "ago": 1
+    }
+  },
+  "short_exit": {
+    "op": "above",
+    "left": {
+      "kind": "price",
+      "field": "close"
+    },
+    "right": {
+      "kind": "indicator",
+      "name": "highest",
+      "length": {
+        "param": "exit_len"
+      },
+      "ago": 1
+    }
+  },
+  "stop": {
+    "kind": "atr",
+    "value": {
+      "param": "stop_atr"
+    },
+    "length": 14
+  }
+}

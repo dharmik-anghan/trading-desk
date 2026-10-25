@@ -15,6 +15,7 @@ forty thousand times sends the most recent few hundred with a count of the rest.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -26,9 +27,12 @@ from api.deps import bar_store, require_bar_service
 from backtest.engine import Execution
 from backtest.lines import compute
 from backtest.metrics import Metrics
+from backtest.reality import Reality
+from backtest.reality import check as reality_check
 from backtest.resample import resample
-from backtest.service import Floors, NoBars, Series, run_stored, stored_interval
+from backtest.service import Floors, NoBars, Series, prepare, run_stored, stored_interval
 from backtest.spec import SpecError, StrategySpec, parse
+from backtest.study import Study
 from marketdata import BarService, Interval
 from marketdata.models import Bar
 from marketdata.store import BarStore
@@ -361,6 +365,100 @@ def run_backtest(request: Request, body: RunRequest) -> RunResponse:
         skipped_too_small=result.skipped_too_small,
         skipped_unaffordable=result.skipped_unaffordable,
         caveats=done.caveats,
+    )
+
+
+class CheckRequest(RunRequest):
+    #: Random-entry runs the real result is ranked against.
+    random_runs: int = Field(default=200, ge=20, le=1000)
+
+
+class CheckOut(BaseModel):
+    name: str
+    passed: bool
+    detail: str
+
+
+class PeriodOut(BaseModel):
+    label: str
+    trades: int
+    total_return: float
+    win_rate: float
+
+
+class CheckResponse(BaseModel):
+    """Whether a result is the strategy or the market and luck. See backtest/reality.py."""
+
+    verdict: str
+    checks: list[CheckOut]
+    trades: int
+    total_return: float
+    p_value: float
+    random_runs: int
+    random_median: float
+    random_best: float
+    random_trades: int
+    periods: list[PeriodOut]
+    stressed_return: float
+
+
+def _check_out(r: Reality) -> CheckResponse:
+    return CheckResponse(
+        verdict=r.verdict,
+        checks=[CheckOut(name=c.name, passed=c.passed, detail=c.detail) for c in r.checks],
+        trades=r.trades,
+        total_return=r.total_return,
+        p_value=r.p_value,
+        random_runs=r.random_runs,
+        random_median=r.random_median,
+        random_best=r.random_best,
+        random_trades=r.random_trades,
+        periods=[
+            PeriodOut(
+                label=p.label, trades=p.trades, total_return=p.total_return, win_rate=p.win_rate
+            )
+            for p in r.periods
+        ],
+        stressed_return=r.stressed_return,
+    )
+
+
+@router.post("/check", response_model=CheckResponse)
+def check_backtest(request: Request, body: CheckRequest) -> CheckResponse:
+    """Run the strategy against random entries, two periods and doubled costs."""
+    raw = {**body.spec, "interval": body.interval}
+    try:
+        parse(raw)
+        size = Interval(body.interval)
+    except SpecError as bad:
+        raise HTTPException(status_code=400, detail=str(bad)) from None
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{body.interval} is not a bar size") from None
+
+    execution = Execution(
+        capital=body.capital,
+        sizing=body.sizing,
+        risk=body.risk,
+        quantity=body.quantity,
+        notional=body.notional,
+        leverage=body.leverage,
+        slippage_bps=body.slippage_bps,
+        maker_entry=body.maker_entry,
+    )
+    store = bar_store(request)
+    try:
+        prepared = prepare(
+            _service(request),
+            store if isinstance(store, BarStore) else None,
+            Series(body.source, body.symbol, size, body.days),
+            funding_source=body.funding_source,
+            floors=Floors(body.min_quantity, body.min_notional, body.quantity_dp),
+        )
+    except NoBars as missing:
+        raise HTTPException(status_code=404, detail=str(missing)) from None
+    workers = max(1, min(6, (os.cpu_count() or 2) - 1))
+    return _check_out(
+        reality_check(Study(prepared, execution), raw, runs=body.random_runs, workers=workers)
     )
 
 

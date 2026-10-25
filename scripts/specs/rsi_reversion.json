@@ -1,0 +1,109 @@
+{
+  "name": "RSI reversion, ATR stop",
+  "params": {
+    "rsi_len": {
+      "type": "int",
+      "low": 5,
+      "high": 30,
+      "default": 14
+    },
+    "buy_level": {
+      "type": "int",
+      "low": 10,
+      "high": 40,
+      "default": 30
+    },
+    "sell_level": {
+      "type": "int",
+      "low": 60,
+      "high": 90,
+      "default": 70
+    },
+    "exit_level": {
+      "type": "int",
+      "low": 40,
+      "high": 60,
+      "default": 50
+    },
+    "stop_atr": {
+      "type": "float",
+      "low": 1.0,
+      "high": 6.0,
+      "step": 0.25,
+      "default": 3.0
+    }
+  },
+  "constraints": [
+    {
+      "lt": [
+        "buy_level",
+        "exit_level"
+      ]
+    },
+    {
+      "lt": [
+        "exit_level",
+        "sell_level"
+      ]
+    }
+  ],
+  "long_entry": {
+    "op": "crosses_below",
+    "left": {
+      "kind": "indicator",
+      "name": "rsi",
+      "length": {
+        "param": "rsi_len"
+      }
+    },
+    "right": {
+      "param": "buy_level"
+    }
+  },
+  "short_entry": {
+    "op": "crosses_above",
+    "left": {
+      "kind": "indicator",
+      "name": "rsi",
+      "length": {
+        "param": "rsi_len"
+      }
+    },
+    "right": {
+      "param": "sell_level"
+    }
+  },
+  "long_exit": {
+    "op": "above",
+    "left": {
+      "kind": "indicator",
+      "name": "rsi",
+      "length": {
+        "param": "rsi_len"
+      }
+    },
+    "right": {
+      "param": "exit_level"
+    }
+  },
+  "short_exit": {
+    "op": "below",
+    "left": {
+      "kind": "indicator",
+      "name": "rsi",
+      "length": {
+        "param": "rsi_len"
+      }
+    },
+    "right": {
+      "param": "exit_level"
+    }
+  },
+  "stop": {
+    "kind": "atr",
+    "value": {
+      "param": "stop_atr"
+    },
+    "length": 14
+  }
+}

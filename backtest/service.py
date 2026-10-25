@@ -16,6 +16,7 @@ from backtest.metrics import Metrics, measure
 from backtest.resample import resample
 from backtest.rules import SpecRule
 from backtest.spec import StrategySpec
+from backtest.view import Shared
 from marketdata import BarService, Interval
 from marketdata.models import Bar
 from marketdata.store import BarStore
@@ -112,17 +113,32 @@ def _funding(
     return FundingSchedule.of(funding_source, rates), caveats
 
 
-def run_stored(
+@dataclass(frozen=True)
+class Prepared:
+    """A series loaded and ready to be traded: the bars and what they trade against.
+
+    Everything `run_stored` did before a rule was involved. Split out because a
+    study runs hundreds of rules over one series, and reading three years of bars
+    from DuckDB and building the market for each of them is most of the cost of a
+    short trial.
+    """
+
+    series: Series
+    bars: list[Bar]
+    market: PerpetualMarket
+    #: What loading found worth saying - a funding proxy, a missing history.
+    caveats: tuple[str, ...] = ()
+
+
+def prepare(
     service: BarService,
     store: BarStore | None,
-    spec: StrategySpec,
     series: Series,
-    execution: Execution,
     *,
     funding_source: str = "",
     floors: Floors | None = None,
-) -> Backtest:
-    """Run `spec` over a stored series. Raises `NoBars` when there is nothing to run on."""
+) -> Prepared:
+    """Load `series` and build its market. Raises `NoBars` when there is nothing stored."""
     floors = floors or Floors()
     bars = load_bars(service, series)
     funding, caveats = _funding(store, funding_source, series, bars[0])
@@ -133,8 +149,24 @@ def run_stored(
         min_notional=floors.min_notional,
         quantity_dp=floors.quantity_dp,
     )
-    result = run(bars, SpecRule(spec), market, interval=series.interval, execution=execution)
+    return Prepared(series, bars, market, tuple(caveats))
+
+
+def execute(
+    prepared: Prepared, spec: StrategySpec, execution: Execution, *, shared: Shared | None = None
+) -> Backtest:
+    """Run `spec` over prepared bars, and say what the result should be read with."""
+    series, bars = prepared.series, prepared.bars
+    result = run(
+        bars,
+        SpecRule(spec),
+        prepared.market,
+        interval=series.interval,
+        execution=execution,
+        shared=shared,
+    )
     metrics = measure(result.trades, result.equity, bars, result.capital, series.interval)
+    caveats = list(prepared.caveats)
     caveats.extend(result.caveats)
     # A side that was declared and never traded is the kind of thing a result
     # should say out loud. It usually means the strategy contradicts itself, or
@@ -151,3 +183,18 @@ def run_stored(
             "them. Exits still pay the taker fee"
         )
     return Backtest(bars, result, metrics, caveats)
+
+
+def run_stored(
+    service: BarService,
+    store: BarStore | None,
+    spec: StrategySpec,
+    series: Series,
+    execution: Execution,
+    *,
+    funding_source: str = "",
+    floors: Floors | None = None,
+) -> Backtest:
+    """Run `spec` over a stored series. Raises `NoBars` when there is nothing to run on."""
+    prepared = prepare(service, store, series, funding_source=funding_source, floors=floors)
+    return execute(prepared, spec, execution)

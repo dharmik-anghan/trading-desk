@@ -1,10 +1,13 @@
 import type { BacktestResult, StrategySpec } from "../../api";
 import { LineChart } from "../../charts/LineChart";
 import { fromUnixPairs } from "../../charts/series";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { BacktestTrade } from "../../api";
 import { TradeChart } from "./TradeChart";
 import { TradeLog } from "./TradeLog";
+import { SliceBar } from "./SliceBar";
+import { NO_SLICE, apply } from "./slice";
+import type { Slice } from "./slice";
 
 interface Props {
   result: BacktestResult;
@@ -28,6 +31,8 @@ const money = (v: number) =>
 export function RunResult({ result, spec }: Props) {
   const m = result.metrics;
   const [picked, setPicked] = useState<BacktestTrade | null>(null);
+  const [slice, setSlice] = useState<Slice>(NO_SLICE);
+  const sliced = useMemo(() => apply(result.trades, slice), [result.trades, slice]);
 
   return (
     <div className="result">
@@ -190,8 +195,12 @@ export function RunResult({ result, spec }: Props) {
       )}
 
       {result.trades.length > 0 && (
+        <SliceBar value={slice} onChange={setSlice} all={result.trades} shown={sliced} />
+      )}
+
+      {result.trades.length > 0 && (
         <TradeLog
-          trades={result.trades}
+          trades={sliced}
           total={result.trades_total}
           quote="USDT"
           picked={picked}

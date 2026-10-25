@@ -116,8 +116,9 @@ class FyersExpired:
                 # The SDK sets no timeout of its own: on 29 Sep a single request
                 # sat on an open socket from 00:18 until morning and the whole run
                 # with it. Abandon it, and ask again on a fresh connection.
-                log.warning("%s took over %.0fs, attempt %d; reconnecting", method,
-                            REQUEST_TIMEOUT, attempt)
+                log.warning(
+                    "%s took over %.0fs, attempt %d; reconnecting", method, REQUEST_TIMEOUT, attempt
+                )
                 if self._renew is not None:
                     self._client = self._renew()
                 continue
@@ -246,9 +247,7 @@ class FyersExpired:
         )
         return [_candle(row) for row in response.get("candles") or []]
 
-    def index_candles(
-        self, symbol: str, resolution: str, start: date, end: date
-    ) -> list[Candle]:
+    def index_candles(self, symbol: str, resolution: str, start: date, end: date) -> list[Candle]:
         response = self._call(
             "history",
             {

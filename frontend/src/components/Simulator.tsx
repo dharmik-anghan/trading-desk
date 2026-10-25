@@ -478,7 +478,7 @@ export function Simulator({ onHome }: Props) {
             underlying={ctx.current.underlying}
             value={moment.at}
             label={longDate(moment.at)}
-            onPick={(at) => void sync({ at })}
+            onPick={(at) => void sync({ at, expiry: null })}
           />
         ) : (
           <div className="sim-when">…</div>

@@ -130,6 +130,7 @@ export function OptionBacktesting({ onHome }: Props) {
     trigger: "leg_stop",
     max_times: 1,
   });
+  const [chart, setChart] = useState<"spot" | "future">("spot");
   const [entrySignal, setEntrySignal] = useState<OptbtEntrySignal>({
     mode: "take_if",
     join: "all",
@@ -224,6 +225,7 @@ export function OptionBacktesting({ onHome }: Props) {
     reentry: { ...reentry, enabled: reentry.enabled && hold === "intraday" },
     entry_signal: entrySignal,
     exit_signal: exitSignal,
+    chart,
     slippage: slippage / 100,
     min_slip: minSlip,
     brokerage,
@@ -255,6 +257,7 @@ export function OptionBacktesting({ onHome }: Props) {
     setReentry(s.reentry);
     setEntrySignal(s.entry_signal);
     setExitSignal(s.exit_signal);
+    setChart(s.chart ?? "spot");
     setSlippage(Math.round(s.slippage * 10000) / 100);
     setMinSlip(s.min_slip);
     setBrokerage(s.brokerage);
@@ -609,6 +612,18 @@ export function OptionBacktesting({ onHome }: Props) {
             )}
           </summary>
           <div className="ob-sig">
+            <div className="ob-sighead">
+              <span>Chart</span>
+              <select
+                value={chart}
+                onChange={(e) => setChart(e.target.value as "spot" | "future")}
+                aria-label="Chart the indicators are read from"
+                title="Indicators are computed on the index or on the near-month future. Strikes, stops and settlement stay on the index."
+              >
+                <option value="spot">Spot</option>
+                <option value="future">Future</option>
+              </select>
+            </div>
             <div className="ob-sighead">
               <span>Entry</span>
               <select

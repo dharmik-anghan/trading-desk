@@ -204,10 +204,10 @@ def test_an_indicator_is_computed_once_per_frame() -> None:
     bars = _series(200)
     view, cursors = build(bars, Interval.M5)
     frame = view.base
-    computed: list[tuple[str, int]] = []
+    computed: list[tuple[str, int, float]] = []
     original = frame._compute
 
-    def counting(key: tuple[str, int]):  # type: ignore[no-untyped-def]
+    def counting(key: tuple[str, int, float]):  # type: ignore[no-untyped-def]
         computed.append(key)
         return original(key)
 
@@ -218,7 +218,7 @@ def test_an_indicator_is_computed_once_per_frame() -> None:
         frame.ema(20)
         frame.rsi(14)
 
-    assert computed == [("ema", 20), ("rsi", 14)]
+    assert computed == [("ema", 20, 0.0), ("rsi", 14, 0.0)]
 
 
 # --------------------------------------------------------------------------

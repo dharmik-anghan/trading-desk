@@ -35,7 +35,8 @@ from optbt.strategies.legs import (
 #: 4: `entry_signal` and `exit_signal`, indicator conditions. Missing, none.
 #: 5: "daily" as an expiry series - every listed expiry, where "weekly" is the
 #: week's own. Identical on the NSE; they differ on a venue with dailies.
-VERSION = 5
+#: 6: `chart`, "spot" or "future": which chart the signals read. Missing, spot.
+VERSION = 6
 
 
 def _level_out(level: Level | None) -> dict[str, Any] | None:
@@ -162,6 +163,7 @@ def to_dict(config: LegsConfig) -> dict[str, Any]:
             "max_per_trade": config.adjust.max_per_trade,
         },
         "equal_wings": config.equal_wings,
+        "chart": config.chart,
         "trigger": {
             "mode": config.trigger.mode,
             "move_pct": config.trigger.move_pct,
@@ -229,6 +231,7 @@ def from_dict(raw: dict[str, Any]) -> LegsConfig:
         days=DayFilter(**{**days, "open_zones": frozenset(days.get("open_zones", ()))}),
         adjust=Adjustment(**adjust),
         equal_wings=bool(raw.get("equal_wings", False)),
+        chart=raw.get("chart", "spot"),
         trigger=EntryTrigger(
             **{
                 **trigger,
